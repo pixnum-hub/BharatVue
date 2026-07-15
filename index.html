@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12151c">
+<meta name="description" content="Real-time India population counter and live global ranking stats.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16.png" sizes="16x16">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BharatVue">
+<title>BharatVue — Live Rankings</title>
+<style>
+  :root[data-theme="light"]{
+    --bg:#f4f6f9; --card:#ffffff; --fg:#14181f; --sub:#5a6270;
+    --accent:#0b7a3d; --accent2:#e07a00; --border:#e2e6ec; --shadow:0 4px 14px rgba(20,24,31,.08);
+  }
+  :root[data-theme="dark"]{
+    --bg:#12151c; --card:#1b1f29; --fg:#eef1f6; --sub:#9aa3b2;
+    --accent:#3ddc84; --accent2:#ffb84d; --border:#2a2f3a; --shadow:0 4px 14px rgba(0,0,0,.4);
+  }
+  :root[data-theme="oled"]{
+    --bg:#000000; --card:#0a0a0a; --fg:#f5f5f5; --sub:#9a9a9a;
+    --accent:#33ff99; --accent2:#ffb84d; --border:#1c1c1c; --shadow:0 0 0 1px #1c1c1c;
+  }
+  :root[data-theme="hc"]{
+    --bg:#000000; --card:#000000; --fg:#ffffff; --sub:#ffff00;
+    --accent:#00ff00; --accent2:#ffff00; --border:#ffffff; --shadow:none;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg); color:var(--fg); transition:background .25s,color .25s;
+    min-height:100vh; display:flex; flex-direction:column;
+  }
+  header{
+    position:sticky; top:0; z-index:10; display:flex; align-items:center;
+    justify-content:space-between; gap:.5rem; padding:.9rem 1rem;
+    background:var(--card); border-bottom:1px solid var(--border);
+  }
+  header .brand{display:flex; align-items:center; gap:.6rem;}
+  header .brand img{width:38px; height:38px; object-fit:contain; flex-shrink:0;}
+  header h1{font-size:1.5rem; margin:0; line-height:1.25;}
+  header h1 span{display:block; font-size:.8rem; color:var(--sub); font-weight:400;}
+  #themeBtn{
+    border:1px solid var(--border); background:transparent; color:var(--fg);
+    padding:.5rem .75rem; border-radius:999px; font-size:.75rem; cursor:pointer;
+    white-space:nowrap;
+  }
+  main{flex:1; width:100%; max-width:760px; margin:0 auto; padding:1rem 1rem 2rem;}
+  .live-counter{
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:1.4rem 1rem; text-align:center; box-shadow:var(--shadow); margin-bottom:1.5rem;
+  }
+  .live-counter h2{margin:0 0 .4rem; font-size:.95rem; color:var(--sub); font-weight:600;}
+  #counter{
+    font-size:clamp(1.8rem,7vw,2.6rem); font-weight:800; color:var(--accent);
+    letter-spacing:.5px; font-variant-numeric:tabular-nums;
+  }
+  .live-counter .sub{margin:.4rem 0 0; font-size:.72rem; color:var(--sub);}
+  .live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent); margin-right:6px; animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .rankings h2{font-size:1.4rem; margin:0 0 .8rem; text-align:center;}
+  .rankings-toolbar{display:flex; flex-direction:column; gap:.6rem; align-items:center; margin-bottom:1rem;}
+  #groupSearch{
+    width:100%; max-width:420px; padding:.6rem .9rem; border-radius:999px;
+    border:1px solid var(--border); background:var(--card); color:var(--fg); font-size:.85rem;
+  }
+  #groupSearch:focus{outline:none; border-color:var(--accent);}
+  #noResults{display:none; text-align:center; color:var(--sub); font-size:.85rem; padding:1rem;}
+  #toggleAllBtn{
+    border:1px solid var(--border); background:transparent; color:var(--fg);
+    padding:.5rem 1rem; border-radius:999px; font-size:.78rem; cursor:pointer;
+  }
+  .category{
+    margin-bottom:.9rem; border:1px solid var(--border); border-radius:14px;
+    background:var(--card); overflow:hidden;
+  }
+  .category summary{
+    list-style:none; cursor:pointer; padding:.85rem 1rem; font-size:1rem;
+    font-weight:700; display:flex; align-items:center; justify-content:space-between;
+    color:var(--fg);
+  }
+  .category summary::-webkit-details-marker{display:none;}
+  .category summary .count{color:var(--sub); font-weight:400; font-size:.8rem;}
+  .category summary .chevron{
+    transition:transform .2s; color:var(--accent); font-size:.9rem; margin-left:.5rem;
+  }
+  .category[open] summary .chevron{transform:rotate(90deg);}
+  .category .grid{padding:0 1rem 1rem;}
+  .grid{display:grid; grid-template-columns:1fr; gap:.7rem;}
+  @media(min-width:560px){.grid{grid-template-columns:1fr 1fr;}}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:.9rem 1rem; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:.25rem;
+  }
+  .card .rank{
+    font-size:1.05rem; font-weight:700; color:var(--accent2); text-transform:uppercase; letter-spacing:.5px;
+  }
+  .card .title{font-size:1.05rem; color:var(--fg); font-weight:600; line-height:1.3;}
+  .card .value{font-size:1.9rem; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums;}
+  .card .unit{font-size:.72rem; color:var(--sub); text-transform:uppercase; letter-spacing:.4px; font-weight:600;}
+  .disclaimer{
+    max-width:760px; margin:1.5rem auto 0; padding:1rem 1.1rem; text-align:center;
+    font-size:.75rem; line-height:1.55; color:var(--sub);
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+  }
+  .disclaimer strong{color:var(--fg);}
+  footer{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:.2rem; padding:1.2rem 1rem; border-top:1px solid var(--border);
+    color:var(--sub); font-size:.75rem;
+  }
+</style>
+</head>
+<body data-theme="dark">
+<header>
+  <div class="brand">
+    <h1>BharatVue<span>Live global rankings</span></h1>
+  </div>
+  <button id="themeBtn" type="button">Theme: Dark</button>
+</header>
+
+<main>
+  <section class="live-counter">
+    <h2><span class="live-dot"></span>India Population — Live Estimate</h2>
+    <div id="counter">Loading…</div>
+    <p class="sub" id="counterMeta">Fetching base data…</p>
+  </section>
+
+  <section class="rankings">
+    <h2>BharatVue's Global Rankings</h2>
+    <div class="rankings-toolbar">
+      <input type="text" id="groupSearch" placeholder="Search groups or stats…" autocomplete="off">
+      <button id="toggleAllBtn" type="button">Expand All</button>
+    </div>
+    <div id="noResults">No matching groups or stats found.</div>
+    <div id="rankGrid"></div>
+  </section>
+</main>
+
+<div class="disclaimer">
+  <strong>Data disclaimer:</strong> Figures on this page are drawn from a mix of published sources (government data, FAO, SIPRI, IMF, etc.) and reasoned estimates for niche categories where no official source exists. Estimated figures are marked <strong>"(est.)"</strong>. Rankings, values, and units may be approximate, outdated, or contested — verify independently before citing or relying on any figure for decisions.
+</div>
+
+<footer>
+  <p>© Manik Roy <span id="year"></span>. All Rights Reserved.</p>
+</footer>
+
+<script>
+/* ---------- Footer year ---------- */
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* ---------- Theme toggle: Dark -> Light -> OLED -> HC -> Dark ---------- */
+const themes = [
+  {key:'dark', label:'Dark'},
+  {key:'light', label:'Light'},
+  {key:'oled', label:'OLED Black'},
+  {key:'hc', label:'High Contrast'}
+];
+let themeIndex = 0;
+const root = document.documentElement;
+const themeBtn = document.getElementById('themeBtn');
+function applyTheme(i){
+  root.setAttribute('data-theme', themes[i].key);
+  themeBtn.textContent = 'Theme: ' + themes[i].label;
+}
+themeBtn.addEventListener('click', () => {
+  themeIndex = (themeIndex + 1) % themes.length;
+  applyTheme(themeIndex);
+});
+applyTheme(themeIndex);
+
+/* ---------- Live population counter ----------
+   Free API, no key/registration: REST Countries
+   Base population is fetched once, then grown in real time
+   using India's approximate annual net growth rate. */
+let basePopulation = 1480303756; // fallback estimate (UN/Countrymeters, Jan 2026)
+let perSecondGrowth = 0;
+let displayValue = basePopulation;
+
+async function loadBasePopulation(){
+  try{
+    const res = await fetch('https://restcountries.com/v3.1/name/india?fields=population');
+    const data = await res.json();
+    if (Array.isArray(data) && data[0] && data[0].population){
+      basePopulation = data[0].population;
+    }
+    document.getElementById('counterMeta').textContent = 'Live estimate, growing from official base data';
+  }catch(e){
+    document.getElementById('counterMeta').textContent = 'Live estimate (offline fallback data)';
+  }
+  const annualGrowthRate = 0.0086; // ~0.86% approx net annual growth (UN 2026 estimate)
+  perSecondGrowth = (basePopulation * annualGrowthRate) / (365 * 24 * 60 * 60);
+  displayValue = basePopulation;
+  renderCounter();
+  setInterval(() => {
+    displayValue += perSecondGrowth;
+    renderCounter();
+  }, 1000);
+}
+function renderCounter(){
+  document.getElementById('counter').textContent = Math.round(displayValue).toLocaleString('en-IN');
+}
+loadBasePopulation();
+
+/* ---------- Top 10 rankings with count-up animation ---------- */
+const rankings = [
+  {rank:'#1', title:'Largest Democracy (by electorate)', cat:'PopDemo', value:968000000, suffix:'voters'},
+  {rank:'#1', title:'Largest Producer of Milk', cat:'Dairy', value:247870000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Film Industry (films/yr)', cat:'Lifestyle', value:1800, suffix:'films'},
+  {rank:'#1', title:'Most Populous Country', cat:'PopDemo', value:1480000000, suffix:'people'},
+  {rank:'#2', title:'Largest Producer of Wheat', cat:'Cereal', value:117940000, suffix:'tonnes/yr'},
+  {rank:'#3', title:'Largest Economy (PPP)', cat:'PubFin', value:18900, suffix:'$ Billion'},
+  {rank:'#3', title:'Most Active Startup Ecosystem', cat:'Startup', value:118000, suffix:'startups'},
+  {rank:'#2', title:'Largest Standing Armed Forces', cat:'GovDefence', value:1450000, suffix:'personnel'},
+  {rank:'#3', title:'Largest Renewable Capacity Installed', cat:'Power', value:220, suffix:'GW'},
+  {rank:'#2', title:'Largest Smartphone Market', cat:'Internet', value:750000000, suffix:'users'},
+  {rank:'#1', title:'Largest Producer of Bananas', cat:'Fruit', value:33900000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Mangoes', cat:'Fruit', value:21000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Jute', cat:'CashCrop', value:1968000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Pulses', cat:'Pulse', value:25680000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Sugarcane', cat:'CashCrop', value:454610000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Postal Network', cat:'Aviation', value:154000, suffix:'offices'},
+  {rank:'#1', title:'Largest Single Employer (Railways)', cat:'Transport', value:1200000, suffix:'employees'},
+  {rank:'#1', title:'Largest Cricket Fanbase (est.)', cat:'Lifestyle', value:900000000, suffix:'fans'},
+  {rank:'#2', title:'Largest Producer of Rice', cat:'Cereal', value:150180000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Cotton', cat:'CashCrop', value:5530000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Steel Producer', cat:'Metal', value:164900000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Textile Manufacturer', cat:'Textile', value:36000, suffix:'$ Million exports'},
+  {rank:'#2', title:'Largest Internet User Base', cat:'Internet', value:900000000, suffix:'users'},
+  {rank:'#2', title:'Largest Road Network', cat:'Transport', value:6400000, suffix:'km'},
+  {rank:'#2', title:'Largest English Speaking Population', cat:'Heritage', value:125000000, suffix:'speakers'},
+  {rank:'#3', title:'Largest Automobile Market', cat:'Auto', value:4540000, suffix:'units/yr'},
+  {rank:'#3', title:'Largest Producer of Electricity', cat:'Power', value:1840, suffix:'TWh/yr'},
+  {rank:'#4', title:'Most Space Missions (cumulative)', cat:'Science', value:100, suffix:'missions'},
+  {rank:'#3', title:'Largest Pharmaceutical Industry', cat:'Healthcare', value:50000, suffix:'$ Million'},
+  {rank:'#4', title:'Largest Renewable Energy Investment', cat:'Power', value:15000, suffix:'$ Million/yr'},
+  {rank:'#4', title:'Largest Crude Oil Refining Capacity', cat:'Power', value:254000000, suffix:'tonnes/yr'},
+  {rank:'#3', title:'Largest Air Passenger Market', cat:'Aviation', value:350000000, suffix:'passengers/yr'},
+  {rank:'#2', title:'Largest Gold Consumer', cat:'PubFin', value:750, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Coal Producer', cat:'Power', value:1047680000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Aluminium', cat:'Metal', value:4100000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Exporter of IT Services', cat:'IndTrade', value:200000, suffix:'$ Million'},
+  {rank:'#5', title:'Largest Stock Market (by cap)', cat:'Capital', value:4800000, suffix:'$ Million'},
+  {rank:'#5', title:'Largest Defence Spender', cat:'GovDefence', value:92100, suffix:'$ Million'},
+  {rank:'#2', title:'Largest Producer of Cement', cat:'Metal', value:380000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Election Workforce', cat:'GovDefence', value:15000000, suffix:'poll workers'},
+  {rank:'#1', title:'Largest Yoga Practicing Population (est.)', cat:'Lifestyle', value:100000000, suffix:'practitioners'},
+  {rank:'#1', title:'Brahma Muhurta Practitioners (est.)', cat:'Lifestyle', value:50000000, suffix:'practitioners'},
+  {rank:'#1', title:'Largest Vegetarian Population (est.)', cat:'Lifestyle', value:400000000, suffix:'people'},
+  {rank:'#1', title:'Largest Dairy Cooperative Network', cat:'Dairy', value:230000, suffix:'cooperatives'},
+  {rank:'#1', title:'Largest Producer of Turmeric', cat:'Spice', value:1100000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Ginger', cat:'Spice', value:2100000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Okra', cat:'Veg', value:6100000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Bicycle Manufacturer', cat:'Auto', value:14000000, suffix:'units/yr'},
+  {rank:'#1', title:'Largest Two-Wheeler Market', cat:'Auto', value:19600000, suffix:'units/yr'},
+  {rank:'#2', title:'Largest Producer of Tea', cat:'CashCrop', value:1350000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Groundnuts', cat:'Pulse', value:10000000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Farmed Fish', cat:'Fish', value:14500000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Mobile Phone Manufacturer', cat:'Consumer', value:330000000, suffix:'units/yr'},
+  {rank:'#3', title:'Largest Solar Capacity Installed', cat:'Power', value:117, suffix:'GW'},
+  {rank:'#2', title:'Largest Producer of Silk', cat:'Seri', value:35000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Higher Education System', cat:'Education', value:43000000, suffix:'students'},
+  {rank:'#3', title:'Largest Startup Unicorn Count', cat:'Startup', value:118, suffix:'unicorns'},
+  {rank:'#2', title:'Largest Producer of Eggs', cat:'Dairy', value:149110000000, suffix:'eggs/yr'},
+  {rank:'#4', title:'Largest Wind Power Capacity', cat:'Power', value:52, suffix:'GW'},
+  {rank:'#1', title:'Largest Producer of Onions', cat:'Veg', value:26000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Spices (all types)', cat:'Spice', value:4000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Exporter of Rice', cat:'AgriTrade', value:20000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Indian Diaspora Population', cat:'PopDemo', value:18000000, suffix:'people abroad'},
+  {rank:'#1', title:'Largest Remittance-Receiving Country', cat:'PubFin', value:129000, suffix:'$ Million/yr'},
+  {rank:'#1', title:'Largest Vaccine Producer (by volume)', cat:'Healthcare', value:3000000000, suffix:'doses/yr'},
+  {rank:'#1', title:'Largest Real-Time Digital Payments Volume (UPI)', cat:'Internet', value:172000000000, suffix:'transactions/yr'},
+  {rank:'#1', title:'Largest Producer of Guar Gum', cat:'CashCrop', value:2500000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Castor Oil Seed', cat:'Pulse', value:1700000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Cumin', cat:'Spice', value:900000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Papaya', cat:'Fruit', value:6100000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Guava', cat:'Fruit', value:4300000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Chickpeas (Gram)', cat:'Pulse', value:12000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Buffalo Population', cat:'Wildlife', value:109000000, suffix:'buffaloes'},
+  {rank:'#1', title:'Largest Producer of Areca Nut', cat:'Plantation', value:1100000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Potatoes', cat:'Veg', value:56000000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Cashews', cat:'Plantation', value:750000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Salt', cat:'Metal', value:30000000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Sugar (processed)', cat:'CashCrop', value:34000000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Exporter of Buffalo Meat', cat:'AgriTrade', value:3500, suffix:'$ Million/yr'},
+  {rank:'#3', title:'Largest Crude Oil Importer', cat:'Power', value:232000000, suffix:'tonnes/yr'},
+  {rank:'#3', title:'Largest Producer of Black Pepper', cat:'Spice', value:130000, suffix:'tonnes/yr'},
+  {rank:'#4', title:'Largest Foreign Exchange Reserves', cat:'PubFin', value:640000, suffix:'$ Million'},
+  {rank:'#4', title:'Largest Rail Network (route length)', cat:'Transport', value:68000, suffix:'km'},
+  {rank:'#3', title:'Largest Clean-Energy Workforce (est.)', cat:'Power', value:1000000, suffix:'jobs'},
+  {rank:'#1', title:'Wild Tiger Population', cat:'Wildlife', value:3682, suffix:'tigers'},
+  {rank:'#1', title:'Asiatic Lion Population (sole habitat)', cat:'Wildlife', value:674, suffix:'lions'},
+  {rank:'#1', title:'Asian Elephant Population (global share)', cat:'Wildlife', value:27000, suffix:'elephants'},
+  {rank:'#1', title:'One-Horned Rhino Population', cat:'Wildlife', value:3700, suffix:'rhinos'},
+  {rank:'#1', title:'Cut & Polished Diamond Exporter', cat:'Gems', value:22000, suffix:'$ Million/yr'},
+  {rank:'#1', title:'Largest Biometric ID Program (Aadhaar)', cat:'GovDefence', value:1380000000, suffix:'IDs issued'},
+  {rank:'#1', title:'Largest Financial-Inclusion Accounts (Jan Dhan)', cat:'Banking', value:550000000, suffix:'accounts'},
+  {rank:'#1', title:'Largest Mobile Data Usage per User', cat:'Internet', value:24, suffix:'GB/month'},
+  {rank:'#1', title:'Largest COVID-19 Vaccine Doses Administered', cat:'Healthcare', value:2200000000, suffix:'doses'},
+  {rank:'#1', title:'Largest Engineering Graduates per Year', cat:'Education', value:1500000, suffix:'graduates/yr'},
+  {rank:'#1', title:'Largest School-Age Student Population', cat:'Education', value:250000000, suffix:'students'},
+  {rank:'#1', title:'Largest Religious Gathering Ever (Kumbh 2025)', cat:'Records', value:660000000, suffix:'attendees'},
+  {rank:'#1', title:'Largest Cricket Stadium (capacity)', cat:'Records', value:132000, suffix:'seats'},
+  {rank:'#1', title:'Cheapest Interplanetary Mission Ever', cat:'Records', value:74, suffix:'$ Million cost'},
+  {rank:'#1', title:'Most Satellites Launched in One Mission', cat:'Records', value:104, suffix:'satellites'},
+  {rank:'#1', title:'Largest Single-Site Solar Park', cat:'Power', value:2245, suffix:'MW'},
+  {rank:'#1', title:'Tallest Statue in the World', cat:'Records', value:182, suffix:'metres'},
+  {rank:'#3', title:'Largest Number of Billionaires', cat:'Capital', value:200, suffix:'billionaires'},
+  {rank:'#1', title:'Largest IPO Market (count/yr)', cat:'Capital', value:300, suffix:'IPOs/yr'},
+  {rank:'#2', title:'Largest Number of Listed Companies (est.)', cat:'Capital', value:5000, suffix:'companies'},
+  {rank:'#3', title:'Largest Number of Doctors (absolute)', cat:'Healthcare', value:1300000, suffix:'doctors'},
+  {rank:'#1', title:'Largest Groundwater Extractor', cat:'AgriInfra', value:251000000000, suffix:'cu.m/yr'},
+  {rank:'#1', title:'Largest Irrigated Agricultural Area', cat:'AgriInfra', value:74000000, suffix:'hectares'},
+  {rank:'#1', title:'Largest Handloom Weaver Workforce', cat:'Gems', value:3500000, suffix:'weavers'},
+  {rank:'#1', title:'Most GI Tags in South Asia', cat:'Heritage', value:635, suffix:'GI tags'},
+  {rank:'#6', title:'Number of UNESCO World Heritage Sites', cat:'Heritage', value:43, suffix:'sites'},
+  {rank:'#4', title:'Number of Living Languages Spoken', cat:'Heritage', value:456, suffix:'languages'},
+  {rank:'#1', title:'Largest Number of Railway Stations', cat:'Transport', value:7300, suffix:'stations'},
+  {rank:'#3', title:'Largest Metro Rail Network (route length)', cat:'Transport', value:950, suffix:'km'},
+  {rank:'#2', title:'Largest Number of Operational Airports', cat:'Aviation', value:150, suffix:'airports'},
+  {rank:'#1', title:'Largest Digital Toll Collection (FASTag)', cat:'Transport', value:6500, suffix:'$ Million/yr'},
+  {rank:'#6', title:'Largest Chemical Industry', cat:'Chem', value:178000, suffix:'$ Million'},
+  {rank:'#5', title:'Largest Manufacturing Output Nation', cat:'Chem', value:450000, suffix:'$ Million GVA'},
+  {rank:'#2', title:'Largest Producer of Man-made Fibre', cat:'Textile', value:1700000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Tractor Manufacturer', cat:'Auto', value:900000, suffix:'units/yr'},
+  {rank:'#2', title:'Largest Bus Manufacturer', cat:'Auto', value:50000, suffix:'units/yr'},
+  {rank:'#3', title:'Largest Heavy Truck Manufacturer', cat:'Auto', value:350000, suffix:'units/yr'},
+  {rank:'#1', title:'Largest Two-Wheeler Exporter (est.)', cat:'IndTrade', value:4000000, suffix:'units/yr'},
+  {rank:'#1', title:'Largest Generic Medicine Supplier (share)', cat:'Healthcare', value:20, suffix:'% of world supply'},
+  {rank:'#5', title:'Largest Hydropower Installed Capacity', cat:'Power', value:52000, suffix:'MW'},
+  {rank:'#2', title:'Largest Producer of Cauliflower', cat:'Veg', value:9000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Green Peas', cat:'Veg', value:5800000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Garlic', cat:'Veg', value:3200000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Ghee (est.)', cat:'Dairy', value:3000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Coriander Seed', cat:'Spice', value:700000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Fennel (est.)', cat:'Spice', value:200000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Producer of Sesame Seed', cat:'Pulse', value:750000, suffix:'tonnes/yr'},
+  {rank:'#5', title:'Largest Producer of Soybean', cat:'Pulse', value:15000000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Kabaddi League Viewership (est.)', cat:'Lifestyle', value:400000000, suffix:'viewers/season'},
+  {rank:'#2', title:'Largest Mobile Banking User Base (est.)', cat:'Banking', value:400000000, suffix:'users'},
+  {rank:'#2', title:'Largest Fintech Funding Market (est.)', cat:'Banking', value:6000, suffix:'$ Million/yr'},
+  {rank:'#1', title:'Largest Medical/Nursing Graduate Output (est.)', cat:'Education', value:1600000, suffix:'graduates/yr'},
+  {rank:'#2', title:'Largest Number of Universities', cat:'Education', value:1100, suffix:'universities'},
+  {rank:'#2', title:'Largest Freelancer Workforce (est.)', cat:'Startup', value:15000000, suffix:'freelancers'},
+  {rank:'#2', title:'Largest Mobile Tower Network (est.)', cat:'Telecom', value:700000, suffix:'towers'},
+  {rank:'#1', title:'Largest 5G Network Rollout (est.)', cat:'Telecom', value:500000, suffix:'sites'},
+  {rank:'#1', title:'Largest Number of Demat (Trading) Accounts', cat:'Capital', value:180000000, suffix:'accounts'},
+  {rank:'#1', title:'Largest Mutual Fund Investor Base (est.)', cat:'Capital', value:220000000, suffix:'folios'},
+  {rank:'#1', title:'Largest Handicrafts Exporter (est.)', cat:'Gems', value:4000, suffix:'$ Million/yr'},
+  {rank:'#2', title:'Largest Leather Goods Exporter', cat:'IndTrade', value:15000, suffix:'$ Million/yr'},
+  {rank:'#2', title:'Largest Footwear Manufacturer (est.)', cat:'Consumer', value:2600000000, suffix:'pairs/yr'},
+  {rank:'#6', title:'Largest Number of Patents Filed Annually', cat:'Science', value:90000, suffix:'patents/yr'},
+  {rank:'#3', title:'Largest Scientific Research Output', cat:'Science', value:250000, suffix:'papers/yr'},
+  {rank:'#1', title:'Largest Basmati Rice Exporter', cat:'AgriTrade', value:4500000, suffix:'tonnes/yr'},
+  {rank:'#2', title:'Largest Producer of Natural Rubber (South Asia)', cat:'CashCrop', value:850000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Coir (Coconut Fibre) Producer', cat:'Plantation', value:600000, suffix:'tonnes/yr'},
+  {rank:'#1', title:'Largest Youth Population (15-29 yrs) (est.)', value:370000000, suffix:'people', cat:'PopDemo'},
+  {rank:'#1', title:'Largest Working-Age Population (est.)', value:950000000, suffix:'people', cat:'PopDemo'},
+  {rank:'#1', title:'Largest Rural Population (est.)', value:900000000, suffix:'people', cat:'PopDemo'},
+  {rank:'#2', title:'Largest Urban Population (est.)', value:480000000, suffix:'people', cat:'PopDemo'},
+  {rank:'#1', title:'Largest Number of Registered NGOs (est.)', value:3200000, suffix:'NGOs', cat:'PopDemo'},
+  {rank:'#1', title:'Largest Panchayati Raj Network (est.)', value:250000, suffix:'panchayats', cat:'PopDemo'},
+  {rank:'#2', title:'Largest Number of Households (est.)', value:310000000, suffix:'households', cat:'PopDemo'},
+  {rank:'#4', title:'Largest Number of Megacities (10M+) (est.)', value:6, suffix:'megacities', cat:'PopDemo'},
+  {rank:'#1', title:'Largest Overseas Citizen Cardholder Base (est.)', value:4500000, suffix:'OCI cardholders', cat:'PopDemo'},
+  {rank:'#4', title:'Largest Number of Passport Holders (est.)', value:90000000, suffix:'passports issued', cat:'PopDemo'},
+  {rank:'#1', title:'Largest Paramilitary Force (est.)', value:1000000, suffix:'personnel', cat:'GovDefence'},
+  {rank:'#4', title:'Largest Naval Fleet (active ships, est.)', value:150, suffix:'ships', cat:'GovDefence'},
+  {rank:'#4', title:'Largest Air Force Fleet (active aircraft, est.)', value:2200, suffix:'aircraft', cat:'GovDefence'},
+  {rank:'#2', title:'Largest Police Force (est.)', value:2200000, suffix:'personnel', cat:'GovDefence'},
+  {rank:'#1', title:'Largest Number of Polling Stations', value:1050000, suffix:'stations', cat:'GovDefence'},
+  {rank:'#1', title:'Largest Number of Registered Political Parties (est.)', value:2800, suffix:'parties', cat:'GovDefence'},
+  {rank:'#3', title:'Largest UN Peacekeeping Troop Contributor (est.)', value:5500, suffix:'troops', cat:'GovDefence'},
+  {rank:'#1', title:'Largest e-Governance Service Delivery Platform (est.)', value:3500, suffix:'digitized services', cat:'GovDefence'},
+  {rank:'#4', title:'Largest Diplomatic Missions Network (est.)', value:190, suffix:'missions', cat:'GovDefence'},
+  {rank:'#1', title:'Largest Central Government Workforce (est.)', value:3200000, suffix:'employees', cat:'GovDefence'},
+  {rank:'#4', title:'Largest Maize (Corn) Producer', value:38000000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#1', title:'Largest Millet Producer (Bajra/Jowar/Ragi)', value:18000000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#6', title:'Largest Barley Producer (est.)', value:1800000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#1', title:'Largest Sorghum Producer (est.)', value:4200000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#1', title:'Largest Foxtail Millet Producer (est.)', value:1200000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#2', title:'Largest Total Foodgrain Producer', value:330000000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#1', title:'Largest Buffer Foodgrain Stock Holder (est.)', value:55000000, suffix:'tonnes', cat:'Cereal'},
+  {rank:'#1', title:'Largest Public Distribution System Coverage (est.)', value:800000000, suffix:'beneficiaries', cat:'Cereal'},
+  {rank:'#3', title:'Largest Oats Producer (est.)', value:200000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#2', title:'Largest Quinoa Cultivation Area (emerging, est.)', value:5000, suffix:'hectares', cat:'Cereal'},
+  {rank:'#1', title:'Largest Pigeon Pea (Tur/Arhar) Producer', value:4400000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#1', title:'Largest Black Gram (Urad) Producer', value:2800000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#1', title:'Largest Green Gram (Moong) Producer', value:2500000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#1', title:'Largest Lentil (Masoor) Producer', value:1600000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#2', title:'Largest Mustard/Rapeseed Producer', value:12500000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#5', title:'Largest Sunflower Seed Producer (est.)', value:500000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#1', title:'Largest Niger Seed Producer (est.)', value:90000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#2', title:'Largest Linseed Producer (est.)', value:140000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#1', title:'Largest Combined Edible Oilseed Basket (est.)', value:40000000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#1', title:'Largest Edible Oil Importer', value:15000000, suffix:'tonnes/yr', cat:'Pulse'},
+  {rank:'#1', title:'Largest Producer of Lemons & Limes', value:3800000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#2', title:'Largest Producer of Watermelon (est.)', value:2500000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#1', title:'Largest Producer of Pomegranate', value:3200000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#1', title:'Largest Producer of Sapota (Chikoo) (est.)', value:1900000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#2', title:'Largest Producer of Grapes', value:3400000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#3', title:'Largest Producer of Apples (est.)', value:2300000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#1', title:'Largest Producer of Jackfruit (est.)', value:1900000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#1', title:'Largest Producer of Custard Apple (est.)', value:280000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#2', title:'Largest Producer of Pineapple', value:1900000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#4', title:'Largest Producer of Oranges (est.)', value:4900000, suffix:'tonnes/yr', cat:'Fruit'},
+  {rank:'#1', title:'Largest Producer of Brinjal (Eggplant)', value:12800000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Tomatoes', value:21000000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Cabbage (est.)', value:9100000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Pumpkin (est.)', value:5000000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Bottle Gourd (est.)', value:4500000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Bitter Gourd (est.)', value:1300000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Carrots (est.)', value:1500000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Radish (est.)', value:3000000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Total Vegetable Production', value:205000000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Ridge Gourd (est.)', value:3800000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Dry Red Chilli', value:2000000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#5', title:'Largest Producer of Saffron (Kashmir, est.)', value:20, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Small Cardamom', value:25000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#2', title:'Largest Producer of Large Cardamom (est.)', value:5000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Nutmeg & Mace (est.)', value:20000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Tamarind (est.)', value:250000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Asafoetida (Processed, est.)', value:1200, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Fenugreek (Methi)', value:220000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Curry Leaf (est.)', value:100000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Celery Seed (est.)', value:15000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#7', title:'Largest Coffee Producer (est.)', value:340000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#1', title:'Largest Producer of Mesta (est.)', value:150000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#1', title:'Largest Area Under Organic Cotton Cultivation (est.)', value:500000, suffix:'hectares', cat:'CashCrop'},
+  {rank:'#1', title:'Largest Producer of Jaggery (Gur) (est.)', value:9000000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#1', title:'Largest Producer of Betel Vine (Paan Leaf) (est.)', value:200000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#3', title:'Largest Producer of Flax/Linseed Fibre (est.)', value:100000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#1', title:'Largest Handloom Cotton Fabric Production (est.)', value:4000000000, suffix:'sq.m/yr', cat:'CashCrop'},
+  {rank:'#2', title:'Largest Cotton Yarn Producer (est.)', value:5500000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#2', title:'Largest Producer of Cottonseed Oil (est.)', value:1400000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#1', title:'Largest Producer of Isabgol (Psyllium Husk)', value:110000, suffix:'tonnes/yr', cat:'CashCrop'},
+  {rank:'#1', title:'Largest Producer of Buffalo Milk (share, est.)', value:100000000, suffix:'tonnes/yr', cat:'Dairy'},
+  {rank:'#1', title:'Largest Producer of Paneer (est.)', value:3000000, suffix:'tonnes/yr', cat:'Dairy'},
+  {rank:'#1', title:'Largest Producer of Curd/Dahi (est.)', value:12000000, suffix:'tonnes/yr', cat:'Dairy'},
+  {rank:'#1', title:'Highest Milk Consumption Among Large Nations (est.)', value:470, suffix:'grams/day per capita', cat:'Dairy'},
+  {rank:'#1', title:'Largest Number of Dairy Farmers (est.)', value:80000000, suffix:'farmers', cat:'Dairy'},
+  {rank:'#2', title:'Largest Cheese Production (est.)', value:200000, suffix:'tonnes/yr', cat:'Dairy'},
+  {rank:'#1', title:'Largest Producer of Khoa/Mawa (est.)', value:1500000, suffix:'tonnes/yr', cat:'Dairy'},
+  {rank:'#1', title:'Largest Butter Production (est.)', value:6500000, suffix:'tonnes/yr', cat:'Dairy'},
+  {rank:'#2', title:'Largest Skimmed Milk Powder Producer (est.)', value:500000, suffix:'tonnes/yr', cat:'Dairy'},
+  {rank:'#1', title:'Largest White Revolution Program Coverage (est.)', value:230000, suffix:'villages', cat:'Dairy'},
+  {rank:'#1', title:'Largest Shrimp Exporter (est.)', value:5100, suffix:'$ Million/yr', cat:'Fish'},
+  {rank:'#2', title:'Largest Total Fish Production (est.)', value:17500000, suffix:'tonnes/yr', cat:'Fish'},
+  {rank:'#1', title:'Largest Inland Fish Producer (est.)', value:13000000, suffix:'tonnes/yr', cat:'Fish'},
+  {rank:'#3', title:'Largest Marine Fish Producer (est.)', value:4000000, suffix:'tonnes/yr', cat:'Fish'},
+  {rank:'#1', title:'Largest Number of Fisherfolk (est.)', value:16000000, suffix:'people', cat:'Fish'},
+  {rank:'#2', title:'Largest Seafood Exporter by Volume (est.)', value:1700000, suffix:'tonnes/yr', cat:'Fish'},
+  {rank:'#1', title:'Largest Freshwater Aquaculture Area (est.)', value:2400000, suffix:'hectares', cat:'Fish'},
+  {rank:'#1', title:'Largest Producer of Carp Species (est.)', value:6000000, suffix:'tonnes/yr', cat:'Fish'},
+  {rank:'#2', title:'Largest Pearl Culture Producer (est.)', value:5, suffix:'tonnes/yr', cat:'Fish'},
+  {rank:'#1', title:'Largest Blue Revolution Scheme Coverage (est.)', value:21, suffix:'states covered', cat:'Fish'},
+  {rank:'#3', title:'Largest Number of Large Dams', value:5334, suffix:'dams', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Canal Irrigation Command Area (est.)', value:17000000, suffix:'hectares', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Micro-Irrigation Coverage (est.)', value:13000000, suffix:'hectares', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Foodgrain Storage Capacity (est.)', value:145000000, suffix:'tonnes', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Cold Storage Facility Network (est.)', value:8000, suffix:'units', cat:'AgriInfra'},
+  {rank:'#2', title:'Largest Fertilizer Consumption', value:61000000, suffix:'tonnes/yr', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Soil Health Card Program (est.)', value:230000000, suffix:'cards issued', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Kisan Credit Card Program', value:74000000, suffix:'cards issued', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Farm Credit Disbursement (est.)', value:250000, suffix:'$ Million/yr', cat:'AgriInfra'},
+  {rank:'#1', title:'Largest Major Irrigation Project Command Area (est.)', value:25000000, suffix:'hectares', cat:'AgriInfra'},
+  {rank:'#3', title:'Largest Producer of Coconuts', value:21000000, suffix:'tonnes/yr', cat:'Plantation'},
+  {rank:'#1', title:'Largest Betel Nut Export Market (est.)', value:200, suffix:'$ Million/yr', cat:'Plantation'},
+  {rank:'#1', title:'Largest Palm Oil Cultivation Area Expansion (est.)', value:400000, suffix:'hectares', cat:'Plantation'},
+  {rank:'#1', title:'Largest Producer of Oil Palm Fresh Fruit Bunches (est.)', value:3500000, suffix:'tonnes/yr', cat:'Plantation'},
+  {rank:'#1', title:'Largest Producer of Cocoa Beans (South India, est.)', value:25000, suffix:'tonnes/yr', cat:'Plantation'},
+  {rank:'#1', title:'Largest Coconut Oil Producer (est.)', value:500000, suffix:'tonnes/yr', cat:'Plantation'},
+  {rank:'#1', title:'Largest Coconut-Growing Area (est.)', value:2100000, suffix:'hectares', cat:'Plantation'},
+  {rank:'#2', title:'Largest Cashew Processing Industry (est.)', value:1200000, suffix:'tonnes/yr', cat:'Plantation'},
+  {rank:'#1', title:'Largest Palm Jaggery Producer (est.)', value:150000, suffix:'tonnes/yr', cat:'Plantation'},
+  {rank:'#1', title:'Largest Betel Leaf Cultivation Area (est.)', value:55000, suffix:'hectares', cat:'Plantation'},
+  {rank:'#1', title:'Largest Producer of Mulberry Silk (est.)', value:25000, suffix:'tonnes/yr', cat:'Seri'},
+  {rank:'#1', title:'Largest Producer of Tasar (Wild) Silk (est.)', value:4000, suffix:'tonnes/yr', cat:'Seri'},
+  {rank:'#1', title:'Largest Producer of Eri Silk (est.)', value:6000, suffix:'tonnes/yr', cat:'Seri'},
+  {rank:'#1', title:'Largest Producer of Muga Silk (est.)', value:150, suffix:'tonnes/yr', cat:'Seri'},
+  {rank:'#1', title:'Largest Number of Sericulture Farmers (est.)', value:9000000, suffix:'people', cat:'Seri'},
+  {rank:'#2', title:'Largest Silk Fabric Exporter (est.)', value:400, suffix:'$ Million/yr', cat:'Seri'},
+  {rank:'#1', title:'Largest Area Under Mulberry Cultivation (est.)', value:250000, suffix:'hectares', cat:'Seri'},
+  {rank:'#1', title:'Largest Silk Handloom Weaving Cluster Network (est.)', value:60000, suffix:'looms', cat:'Seri'},
+  {rank:'#2', title:'Largest Raw Silk Consumption (est.)', value:30000, suffix:'tonnes/yr', cat:'Seri'},
+  {rank:'#1', title:'Largest Number of Silk Cooperative Societies (est.)', value:1200, suffix:'societies', cat:'Seri'},
+  {rank:'#1', title:'Largest Leopard Population', value:13874, suffix:'leopards', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Snow Leopard Habitat Population (est.)', value:718, suffix:'snow leopards', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Number of Tiger Reserves', value:57, suffix:'reserves', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Biosphere Reserve Network (est.)', value:18, suffix:'reserves', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Elephant Reserve Network (est.)', value:33, suffix:'reserves', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Number of Ramsar Wetland Sites', value:85, suffix:'sites', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Gharial (Crocodile Species) Population (est.)', value:3000, suffix:'gharials', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Number of National Parks (est.)', value:106, suffix:'national parks', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Number of Wildlife Sanctuaries (est.)', value:573, suffix:'sanctuaries', cat:'Wildlife'},
+  {rank:'#4', title:'Largest Forest Cover Area (est.)', value:813000, suffix:'sq.km', cat:'Wildlife'},
+  {rank:'#1', title:'Largest Three-Wheeler (Auto-Rickshaw) Manufacturer (est.)', value:700000, suffix:'units/yr', cat:'Auto'},
+  {rank:'#3', title:'Largest Electric Vehicle Market (est.)', value:1700000, suffix:'units/yr', cat:'Auto'},
+  {rank:'#1', title:'Largest E-Rickshaw Fleet (est.)', value:2500000, suffix:'e-rickshaws', cat:'Auto'},
+  {rank:'#4', title:'Largest Passenger Vehicle Producer (est.)', value:4800000, suffix:'units/yr', cat:'Auto'},
+  {rank:'#1', title:'Largest Motorcycle Exporter (est.)', value:3500000, suffix:'units/yr', cat:'Auto'},
+  {rank:'#2', title:'Largest Auto Component Industry (est.)', value:75000, suffix:'$ Million', cat:'Auto'},
+  {rank:'#1', title:'Largest CNG Vehicle Fleet (est.)', value:7000000, suffix:'vehicles', cat:'Auto'},
+  {rank:'#4', title:'Largest Car Production Volume (est.)', value:4500000, suffix:'cars/yr', cat:'Auto'},
+  {rank:'#2', title:'Largest Commercial Vehicle Market (est.)', value:1000000, suffix:'units/yr', cat:'Auto'},
+  {rank:'#3', title:'Largest Annual Vehicle Registration Volume (est.)', value:25000000, suffix:'vehicles/yr', cat:'Auto'},
+  {rank:'#2', title:'Largest Iron Ore Producer (est.)', value:270000000, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#4', title:'Largest Bauxite Producer (est.)', value:21000000, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#2', title:'Largest Manganese Ore Producer (est.)', value:3200000, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#1', title:'Largest Sheet Mica Producer (est.)', value:700, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#3', title:'Largest Chromite Producer (est.)', value:4200000, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#7', title:'Largest Copper Producer (est.)', value:800000, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#2', title:'Largest Zinc Producer (est.)', value:800000, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#1', title:'Largest Limestone Producer (est.)', value:400000000, suffix:'tonnes/yr', cat:'Metal'},
+  {rank:'#9', title:'Largest Central Bank Gold Reserve Holder (est.)', value:880, suffix:'tonnes', cat:'Metal'},
+  {rank:'#3', title:'Largest Coal Reserve Holder (est.)', value:378000000000, suffix:'tonnes reserves', cat:'Metal'},
+  {rank:'#1', title:'Largest Cotton Spinning Capacity (est.)', value:50000000, suffix:'spindles', cat:'Textile'},
+  {rank:'#2', title:'Largest Textile & Apparel Market (est.)', value:165000, suffix:'$ Million', cat:'Textile'},
+  {rank:'#1', title:'Largest Khadi (Handspun Cloth) Production (est.)', value:1500000000, suffix:'sq.m/yr', cat:'Textile'},
+  {rank:'#2', title:'Largest Denim Fabric Producer (est.)', value:1500000000, suffix:'metres/yr', cat:'Textile'},
+  {rank:'#1', title:'Largest Jute Textile Manufacturing Industry (est.)', value:1900000, suffix:'tonnes/yr processed', cat:'Textile'},
+  {rank:'#2', title:'Largest Wool Textile Producer (est.)', value:45000, suffix:'tonnes/yr', cat:'Textile'},
+  {rank:'#1', title:'Largest Home Textile Exporter (est.)', value:9000, suffix:'$ Million/yr', cat:'Textile'},
+  {rank:'#2', title:'Largest Readymade Garment Exporter (est.)', value:16000, suffix:'$ Million/yr', cat:'Textile'},
+  {rank:'#1', title:'Largest Powerloom Fabric Producer (est.)', value:40000000000, suffix:'metres/yr', cat:'Textile'},
+  {rank:'#2', title:'Largest Technical Textiles Market (est.)', value:23000, suffix:'$ Million', cat:'Textile'},
+  {rank:'#3', title:'Largest Agrochemical (Pesticide) Producer (est.)', value:300000, suffix:'tonnes/yr', cat:'Chem'},
+  {rank:'#6', title:'Largest Petrochemical Producer (est.)', value:25000000, suffix:'tonnes/yr', cat:'Chem'},
+  {rank:'#2', title:'Largest Dye & Pigment Exporter (est.)', value:4000, suffix:'$ Million/yr', cat:'Chem'},
+  {rank:'#4', title:'Largest Fertilizer Producer (est.)', value:43000000, suffix:'tonnes/yr', cat:'Chem'},
+  {rank:'#3', title:'Largest Plastics Consumption Market (est.)', value:22000000, suffix:'tonnes/yr', cat:'Chem'},
+  {rank:'#2', title:'Largest Speciality Chemicals Exporter (est.)', value:16000, suffix:'$ Million/yr', cat:'Chem'},
+  {rank:'#1', title:'Largest Castor Oil Derivatives Exporter (est.)', value:1200, suffix:'$ Million/yr', cat:'Chem'},
+  {rank:'#6', title:'Largest Rubber Chemicals Producer (est.)', value:200000, suffix:'tonnes/yr', cat:'Chem'},
+  {rank:'#3', title:'Largest Paints & Coatings Market (est.)', value:9000, suffix:'$ Million', cat:'Chem'},
+  {rank:'#4', title:'Largest Industrial Gas Market (est.)', value:4500, suffix:'$ Million', cat:'Chem'},
+  {rank:'#2', title:'Largest Television Manufacturing Base (est.)', value:20000000, suffix:'units/yr', cat:'Consumer'},
+  {rank:'#3', title:'Largest Consumer Electronics Market (est.)', value:100000, suffix:'$ Million', cat:'Consumer'},
+  {rank:'#1', title:'Largest Ayurvedic & Herbal Products Industry (est.)', value:8000, suffix:'$ Million', cat:'Consumer'},
+  {rank:'#2', title:'Largest FMCG Market (est.)', value:190000, suffix:'$ Million', cat:'Consumer'},
+  {rank:'#2', title:'Largest Furniture Manufacturing Market (est.)', value:32000, suffix:'$ Million', cat:'Consumer'},
+  {rank:'#1', title:'Largest Incense Stick (Agarbatti) Producer (est.)', value:1500, suffix:'$ Million industry', cat:'Consumer'},
+  {rank:'#2', title:'Largest Toy Manufacturing Growth Market (est.)', value:3000, suffix:'$ Million', cat:'Consumer'},
+  {rank:'#3', title:'Largest Refrigerator/AC Manufacturing Base (est.)', value:15000000, suffix:'units/yr', cat:'Consumer'},
+  {rank:'#2', title:'Largest Packaged Food Market (est.)', value:70000, suffix:'$ Million', cat:'Consumer'},
+  {rank:'#4', title:'Largest Kitchenware & Utensils Exporter (est.)', value:700, suffix:'$ Million/yr', cat:'Consumer'},
+  {rank:'#1', title:'Largest Number of Retail Stock Investors (est.)', value:100000000, suffix:'investors', cat:'Capital'},
+  {rank:'#2', title:'Largest Derivatives Trading Volume (est.)', value:5000000000, suffix:'contracts/yr', cat:'Capital'},
+  {rank:'#1', title:'Largest Options Trading Market by Volume (est.)', value:80, suffix:'% of global volume', cat:'Capital'},
+  {rank:'#4', title:'Largest Bond Market (est.)', value:2700000, suffix:'$ Million', cat:'Capital'},
+  {rank:'#2', title:'Largest PE/VC Investment Destination (est.)', value:60000, suffix:'$ Million/yr', cat:'Capital'},
+  {rank:'#5', title:'Largest Insurance Market (est.)', value:130000, suffix:'$ Million premiums', cat:'Capital'},
+  {rank:'#2', title:'Largest SIP Contribution Market (est.)', value:25000, suffix:'$ Million/month', cat:'Capital'},
+  {rank:'#4', title:'Largest Pension Fund Assets (est.)', value:700000, suffix:'$ Million', cat:'Capital'},
+  {rank:'#1', title:'Largest Number of Registered Stock Brokers (est.)', value:4000, suffix:'brokers', cat:'Capital'},
+  {rank:'#3', title:'Largest REIT Market in Asia (est.)', value:6, suffix:'listed REITs', cat:'Capital'},
+  {rank:'#1', title:'Largest Number of Bank Branches (est.)', value:160000, suffix:'branches', cat:'Banking'},
+  {rank:'#1', title:'Largest Rural Bank Branch Network (est.)', value:60000, suffix:'branches', cat:'Banking'},
+  {rank:'#2', title:'Largest Number of ATMs (est.)', value:250000, suffix:'ATMs', cat:'Banking'},
+  {rank:'#1', title:'Largest Cooperative Banking Network (est.)', value:97000, suffix:'cooperative banks', cat:'Banking'},
+  {rank:'#1', title:'Largest Microfinance Market (est.)', value:50000, suffix:'$ Million portfolio', cat:'Banking'},
+  {rank:'#2', title:'Largest NBFC Sector (est.)', value:90000, suffix:'$ Million assets', cat:'Banking'},
+  {rank:'#1', title:'Largest Regional Rural Bank Network (est.)', value:43, suffix:'banks', cat:'Banking'},
+  {rank:'#2', title:'Largest Digital Lending Market (est.)', value:35000, suffix:'$ Million/yr', cat:'Banking'},
+  {rank:'#1', title:'Largest Postal Banking Network (est.)', value:650000000, suffix:'accounts', cat:'Banking'},
+  {rank:'#3', title:'Largest Wealth Management Market (est.)', value:5500000, suffix:'$ Million AUM', cat:'Banking'},
+  {rank:'#6', title:'Largest Nominal GDP', value:4150000, suffix:'$ Million', cat:'PubFin'},
+  {rank:'#3', title:'Largest Tax Revenue Collection (est.)', value:400000, suffix:'$ Million/yr', cat:'PubFin'},
+  {rank:'#1', title:'Largest Unified GST Collection System (est.)', value:250000, suffix:'$ Million/yr', cat:'PubFin'},
+  {rank:'#4', title:'Largest Sovereign Debt Market (est.)', value:1600000, suffix:'$ Million', cat:'PubFin'},
+  {rank:'#5', title:'Largest Government Budget (est.)', value:550000, suffix:'$ Million/yr', cat:'PubFin'},
+  {rank:'#1', title:'Largest Direct Benefit Transfer System (est.)', value:40000, suffix:'$ Million/yr', cat:'PubFin'},
+  {rank:'#4', title:'Largest Infrastructure Investment Plan (est.)', value:1700000, suffix:'$ Million', cat:'PubFin'},
+  {rank:'#2', title:'Largest FDI Recipient in Asia (est.)', value:71000, suffix:'$ Million/yr', cat:'PubFin'},
+  {rank:'#3', title:'Largest External Debt Among Emerging Markets (est.)', value:720000, suffix:'$ Million', cat:'PubFin'},
+  {rank:'#1', title:'Largest Universal Health Coverage Scheme (est.)', value:500000000, suffix:'beneficiaries', cat:'PubFin'},
+  {rank:'#2', title:'Largest Venture Capital Deal Volume (est.)', value:2400, suffix:'deals/yr', cat:'Startup'},
+  {rank:'#3', title:'Largest E-commerce Market (est.)', value:150000, suffix:'$ Million GMV', cat:'Startup'},
+  {rank:'#2', title:'Largest Food Delivery Market (est.)', value:15000, suffix:'$ Million GMV', cat:'Startup'},
+  {rank:'#1', title:'Largest Ride-Hailing Market by Rides (est.)', value:3000000000, suffix:'rides/yr', cat:'Startup'},
+  {rank:'#2', title:'Largest EdTech Market (est.)', value:4500, suffix:'$ Million', cat:'Startup'},
+  {rank:'#3', title:'Largest SaaS Startup Hub (est.)', value:1500, suffix:'SaaS companies', cat:'Startup'},
+  {rank:'#2', title:'Largest Deep-Tech Startup Ecosystem (est.)', value:10000, suffix:'startups', cat:'Startup'},
+  {rank:'#1', title:'Largest Government-Recognized Incubator Network (est.)', value:700, suffix:'incubators', cat:'Startup'},
+  {rank:'#2', title:'Largest Angel Investor Network (est.)', value:10000, suffix:'angel investors', cat:'Startup'},
+  {rank:'#3', title:'Largest AI Startup Ecosystem (est.)', value:5000, suffix:'AI startups', cat:'Startup'},
+  {rank:'#2', title:'Largest Social Media User Base (est.)', value:500000000, suffix:'users', cat:'Internet'},
+  {rank:'#1', title:'Largest WhatsApp User Base (est.)', value:535000000, suffix:'users', cat:'Internet'},
+  {rank:'#2', title:'Largest YouTube User Base (est.)', value:460000000, suffix:'users', cat:'Internet'},
+  {rank:'#1', title:'Largest OTT/Streaming Subscriber Growth (est.)', value:100000000, suffix:'subscribers', cat:'Internet'},
+  {rank:'#1', title:'Largest Digital Payment Merchant Network (est.)', value:65000000, suffix:'merchants', cat:'Internet'},
+  {rank:'#2', title:'Largest Online Gaming Market (est.)', value:3800, suffix:'$ Million revenue', cat:'Internet'},
+  {rank:'#1', title:'Largest QR Code Payment Point Network (est.)', value:350000000, suffix:'QR codes', cat:'Internet'},
+  {rank:'#3', title:'Largest E-commerce Shopper Base (est.)', value:350000000, suffix:'shoppers', cat:'Internet'},
+  {rank:'#2', title:'Largest Data Center Capacity Growth Market (est.)', value:1300, suffix:'MW capacity', cat:'Internet'},
+  {rank:'#2', title:'Largest Cloud Computing Market in Asia (est.)', value:17000, suffix:'$ Million', cat:'Internet'},
+  {rank:'#2', title:'Largest Telecom Subscriber Base (est.)', value:1170000000, suffix:'subscribers', cat:'Telecom'},
+  {rank:'#1', title:'Largest Rural Telecom Subscriber Base (est.)', value:550000000, suffix:'subscribers', cat:'Telecom'},
+  {rank:'#1', title:'Cheapest Mobile Data Tariff Globally (est.)', value:0.09, suffix:'$ per GB', cat:'Telecom'},
+  {rank:'#2', title:'Largest Fibre Broadband Network Expansion (est.)', value:4000000, suffix:'km cable laid', cat:'Telecom'},
+  {rank:'#1', title:'Largest Rural Broadband Coverage (BharatNet, est.)', value:210000, suffix:'villages connected', cat:'Telecom'},
+  {rank:'#3', title:'Largest Satellite Communication Market (est.)', value:3500, suffix:'$ Million', cat:'Telecom'},
+  {rank:'#1', title:'Largest Feature Phone Market (est.)', value:70000000, suffix:'users', cat:'Telecom'},
+  {rank:'#2', title:'Largest Telecom Equipment Manufacturing Push (est.)', value:5000, suffix:'$ Million/yr', cat:'Telecom'},
+  {rank:'#1', title:'Largest VoIP/Internet Calling User Base (est.)', value:400000000, suffix:'users', cat:'Telecom'},
+  {rank:'#3', title:'Largest Submarine Cable Landing Hub in Asia (est.)', value:17, suffix:'cable landings', cat:'Telecom'},
+  {rank:'#3', title:'Largest Number of Hospitals (est.)', value:70000, suffix:'hospitals', cat:'Healthcare'},
+  {rank:'#1', title:'Largest Number of Hospital Beds Absolute (est.)', value:1900000, suffix:'beds', cat:'Healthcare'},
+  {rank:'#1', title:'Largest AYUSH Practitioner Base (est.)', value:800000, suffix:'practitioners', cat:'Healthcare'},
+  {rank:'#2', title:'Largest Medical Tourism Destination (est.)', value:9000000, suffix:'patients/yr', cat:'Healthcare'},
+  {rank:'#1', title:'Largest Blood Donation Network (est.)', value:12000000, suffix:'units/yr', cat:'Healthcare'},
+  {rank:'#1', title:'Largest Number of Nurses (est.)', value:3300000, suffix:'nurses', cat:'Healthcare'},
+  {rank:'#3', title:'Largest Health Insurance Coverage (est.)', value:700000000, suffix:'people covered', cat:'Healthcare'},
+  {rank:'#1', title:'Largest Organ Transplant Growth Market (est.)', value:15000, suffix:'transplants/yr', cat:'Healthcare'},
+  {rank:'#2', title:'Largest Clinical Trials Destination (est.)', value:1500, suffix:'trials/yr', cat:'Healthcare'},
+  {rank:'#1', title:'Largest Rural Health Sub-Centre Network (est.)', value:158000, suffix:'sub-centres', cat:'Healthcare'},
+  {rank:'#1', title:'Largest Number of Schools (est.)', value:1500000, suffix:'schools', cat:'Education'},
+  {rank:'#1', title:'Largest Number of Teachers (est.)', value:9500000, suffix:'teachers', cat:'Education'},
+  {rank:'#2', title:'Largest Literate Population (absolute, est.)', value:900000000, suffix:'literate people', cat:'Education'},
+  {rank:'#1', title:'Largest Mid-Day Meal Scheme (est.)', value:118000000, suffix:'children fed/day', cat:'Education'},
+  {rank:'#2', title:'Largest Number of PhD Scholars (est.)', value:220000, suffix:'scholars', cat:'Education'},
+  {rank:'#1', title:'Largest Vocational Training Network (ITIs, est.)', value:15000, suffix:'ITIs', cat:'Education'},
+  {rank:'#3', title:'Largest MOOC/Online Learner Base (est.)', value:13000000, suffix:'learners', cat:'Education'},
+  {rank:'#1', title:'Largest Central University & IIT Network (est.)', value:23, suffix:'IITs', cat:'Education'},
+  {rank:'#2', title:'Largest Study-Abroad Student Sending Country (est.)', value:1300000, suffix:'students abroad', cat:'Education'},
+  {rank:'#2', title:'Largest Skilling Program (Skill India, est.)', value:14000000, suffix:'people trained', cat:'Education'},
+  {rank:'#4', title:'Largest Number of Active Research Institutions (est.)', value:4000, suffix:'institutions', cat:'Science'},
+  {rank:'#3', title:'Largest Number of PhDs Awarded Annually (est.)', value:25000, suffix:'PhDs/yr', cat:'Science'},
+  {rank:'#2', title:'Largest Supercomputing Capacity (est.)', value:33, suffix:'petaflops', cat:'Science'},
+  {rank:'#3', title:'Largest AI Research Paper Output (est.)', value:20000, suffix:'papers/yr', cat:'Science'},
+  {rank:'#1', title:'Largest Number of Science & Tech Parks (est.)', value:25, suffix:'parks', cat:'Science'},
+  {rank:'#4', title:'Largest R&D Spending Growth Market (est.)', value:25000, suffix:'$ Million/yr', cat:'Science'},
+  {rank:'#1', title:'Largest CSIR Laboratory Network (est.)', value:37, suffix:'labs', cat:'Science'},
+  {rank:'#2', title:'Largest Number of Nuclear Reactors (est.)', value:24, suffix:'reactors', cat:'Science'},
+  {rank:'#4', title:'Largest Renewable Tech Patent Filings (est.)', value:3000, suffix:'patents/yr', cat:'Science'},
+  {rank:'#1', title:'Largest Deep-Space Tracking Network in Asia (est.)', value:3, suffix:'deep-space stations', cat:'Science'},
+  {rank:'#1', title:'Largest Railway Passenger Traffic (est.)', value:8000000000, suffix:'passengers/yr', cat:'Transport'},
+  {rank:'#1', title:'Largest Railway Freight Traffic (est.)', value:1600000000, suffix:'tonnes/yr', cat:'Transport'},
+  {rank:'#4', title:'Largest National Highway Network (est.)', value:146000, suffix:'km', cat:'Transport'},
+  {rank:'#1', title:'Largest Expressway Network Under Construction (est.)', value:18000, suffix:'km', cat:'Transport'},
+  {rank:'#2', title:'Largest Public Bus Fleet (est.)', value:2000000, suffix:'buses', cat:'Transport'},
+  {rank:'#3', title:'Largest Container Port Traffic (est.)', value:22000000, suffix:'TEUs/yr', cat:'Transport'},
+  {rank:'#1', title:'Largest Inland Waterway Network (est.)', value:20000, suffix:'km', cat:'Transport'},
+  {rank:'#2', title:'Largest Number of Major Ports (est.)', value:12, suffix:'major ports', cat:'Transport'},
+  {rank:'#1', title:'Largest Electrified Rail Network (est.)', value:63000, suffix:'km electrified', cat:'Transport'},
+  {rank:'#4', title:'Largest Urban Metro Ridership (est.)', value:11000000, suffix:'daily riders', cat:'Transport'},
+  {rank:'#1', title:'Largest Domestic Aviation Market (est.)', value:165000000, suffix:'passengers/yr', cat:'Aviation'},
+  {rank:'#3', title:'Largest Air Cargo Market (est.)', value:3500000, suffix:'tonnes/yr', cat:'Aviation'},
+  {rank:'#2', title:'Largest Commercial Aircraft Fleet (est.)', value:850, suffix:'aircraft', cat:'Aviation'},
+  {rank:'#1', title:'Largest Regional Air Connectivity Scheme (UDAN, est.)', value:600, suffix:'routes', cat:'Aviation'},
+  {rank:'#3', title:'Largest Helicopter Fleet (est.)', value:300, suffix:'helicopters', cat:'Aviation'},
+  {rank:'#2', title:'Largest Logistics Market in Asia (est.)', value:250000, suffix:'$ Million', cat:'Aviation'},
+  {rank:'#1', title:'Largest E-commerce Last-Mile Delivery Network (est.)', value:20000000, suffix:'parcels/day', cat:'Aviation'},
+  {rank:'#3', title:'Largest Cold Chain Logistics Market (est.)', value:35000, suffix:'$ Million', cat:'Aviation'},
+  {rank:'#2', title:'Largest Warehousing Real Estate Market (est.)', value:350000000, suffix:'sq.ft', cat:'Aviation'},
+  {rank:'#1', title:'Largest Multi-Modal Logistics Parks Program (est.)', value:35, suffix:'planned parks', cat:'Aviation'},
+  {rank:'#1', title:'Largest Sugar Exporter (est.)', value:6000000, suffix:'tonnes/yr', cat:'AgriTrade'},
+  {rank:'#1', title:'Largest Spice Exporter by Value (est.)', value:4500, suffix:'$ Million/yr', cat:'AgriTrade'},
+  {rank:'#2', title:'Largest Tea Exporter (est.)', value:230000, suffix:'tonnes/yr', cat:'AgriTrade'},
+  {rank:'#1', title:'Largest Cotton Yarn Exporter (est.)', value:4500, suffix:'$ Million/yr', cat:'AgriTrade'},
+  {rank:'#2', title:'Largest Coffee Exporter (est.)', value:400000, suffix:'tonnes/yr', cat:'AgriTrade'},
+  {rank:'#1', title:'Largest Fruit & Vegetable Exporter (est.)', value:4000, suffix:'$ Million/yr', cat:'AgriTrade'},
+  {rank:'#2', title:'Largest Meat Exporter Overall (est.)', value:4500, suffix:'$ Million/yr', cat:'AgriTrade'},
+  {rank:'#1', title:'Largest Agri-Processed Food Exporter (est.)', value:14000, suffix:'$ Million/yr', cat:'AgriTrade'},
+  {rank:'#2', title:'Largest Groundnut Exporter (est.)', value:700000, suffix:'tonnes/yr', cat:'AgriTrade'},
+  {rank:'#1', title:'Largest Guar Gum Exporter (est.)', value:1000, suffix:'$ Million/yr', cat:'AgriTrade'},
+  {rank:'#1', title:'Largest Diamond Cutting Workforce (est.)', value:1000000, suffix:'workers', cat:'Gems'},
+  {rank:'#2', title:'Largest Gold Jewellery Consumer Market (est.)', value:700, suffix:'tonnes/yr demand', cat:'Gems'},
+  {rank:'#1', title:'Largest Gems & Jewellery Exporter by Value (est.)', value:32000, suffix:'$ Million/yr', cat:'Gems'},
+  {rank:'#2', title:'Largest Silver Jewellery Manufacturing Hub (est.)', value:300, suffix:'$ Million/yr', cat:'Gems'},
+  {rank:'#1', title:'Largest Coloured Gemstone Cutting Centre (est.)', value:60, suffix:'% global share', cat:'Gems'},
+  {rank:'#2', title:'Largest Carpet & Rugs Exporter (est.)', value:1700, suffix:'$ Million/yr', cat:'Gems'},
+  {rank:'#1', title:'Largest Wooden Handicrafts Exporter (est.)', value:700, suffix:'$ Million/yr', cat:'Gems'},
+  {rank:'#2', title:'Largest Embroidery & Textile Craft Exporter (est.)', value:1200, suffix:'$ Million/yr', cat:'Gems'},
+  {rank:'#1', title:'Largest Number of Registered Artisans (est.)', value:7000000, suffix:'artisans', cat:'Gems'},
+  {rank:'#2', title:'Largest Leather Handicrafts Exporter (est.)', value:900, suffix:'$ Million/yr', cat:'Gems'},
+  {rank:'#1', title:'Largest Generic Drug Exporter by Volume (est.)', value:20000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#2', title:'Largest Auto Component Exporter (est.)', value:21000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#1', title:'Largest Engineering Goods Exporter in South Asia (est.)', value:110000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#2', title:'Largest Electronics Exporter (est.)', value:29000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#1', title:'Largest Petroleum Products Exporter in South Asia (est.)', value:90000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#3', title:'Largest Chemical Exports Market (est.)', value:30000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#2', title:'Largest Plastic Goods Exporter (est.)', value:13000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#2', title:'Largest Marine Products Exporter (est.)', value:8000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#3', title:'Largest Software Product Exporter (est.)', value:15000, suffix:'$ Million/yr', cat:'IndTrade'},
+  {rank:'#2', title:'Largest Steel Exporter (est.)', value:5000000, suffix:'tonnes/yr', cat:'IndTrade'},
+  {rank:'#1', title:'Largest Number of Constitutionally Recognized Languages', value:22, suffix:'languages', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Mother Tongues/Dialects (est.)', value:19500, suffix:'dialects', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Classical Languages Recognized (est.)', value:11, suffix:'classical languages', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Script Systems in Use (est.)', value:13, suffix:'scripts', cat:'Heritage'},
+  {rank:'#6', title:'Largest UNESCO Intangible Heritage List Entries (est.)', value:15, suffix:'entries', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Major Festivals Celebrated Annually (est.)', value:30, suffix:'festivals', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Classical Dance Forms Recognized', value:8, suffix:'dance forms', cat:'Heritage'},
+  {rank:'#4', title:'Largest Number of Protected Archaeological Monuments (est.)', value:3691, suffix:'monuments', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Sacred Groves (est.)', value:13720, suffix:'groves', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Registered Newspaper Publications (est.)', value:140000, suffix:'publications', cat:'Heritage'},
+  {rank:'#1', title:'Largest Number of Movie Tickets Sold Annually (est.)', value:1500000000, suffix:'tickets/yr', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Television Viewership Base (est.)', value:900000000, suffix:'viewers', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Number of TV Channels (est.)', value:900, suffix:'channels', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Wedding Industry Market (est.)', value:130000, suffix:'$ Million/yr', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Ayurveda Wellness Centre Network (est.)', value:30000, suffix:'centres', cat:'Lifestyle'},
+  {rank:'#2', title:'Largest Music Streaming Market (est.)', value:250000000, suffix:'users', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Number of FM Radio Stations (est.)', value:380, suffix:'stations', cat:'Lifestyle'},
+  {rank:'#2', title:'Largest Gaming/Esports Audience (est.)', value:500000000, suffix:'gamers', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Vegan/Plant-Based Diet Adopter Base (est.)', value:40000000, suffix:'people', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Number of Ashrams & Spiritual Organizations (est.)', value:5000, suffix:'ashrams', cat:'Lifestyle'},
+  {rank:'#1', title:'Largest Human Flag Formation (Guinness Record)', value:43830, suffix:'people', cat:'Records'},
+  {rank:'#1', title:'Longest Highway Tunnel Above 10,000 ft (Atal Tunnel)', value:9, suffix:'km', cat:'Records'},
+  {rank:'#1', title:'Highest Motorable Mountain Pass (claimed record)', value:5798, suffix:'metres', cat:'Records'},
+  {rank:'#1', title:'Highest Railway Bridge in the World (Chenab Bridge)', value:359, suffix:'metres', cat:'Records'},
+  {rank:'#1', title:'Longest River Cruise Route (claimed, Ganga Vilas)', value:3200, suffix:'km', cat:'Records'},
+  {rank:'#1', title:'Largest Rural Employment Guarantee Scheme (MGNREGA, est.)', value:100000000, suffix:'households', cat:'Records'},
+  {rank:'#1', title:'Most Valuable T20 Cricket League (IPL, est.)', value:15400, suffix:'$ Million brand value', cat:'Records'},
+  {rank:'#1', title:'Largest Fully Solar-Powered Airport (Cochin, est.)', value:40, suffix:'MW capacity', cat:'Records'},
+  {rank:'#1', title:'Fastest-Growing Major Economy (est.)', value:6.5, suffix:'% growth/yr', cat:'Records'},
+  {rank:'#1', title:'Largest Democratic Election Ever Conducted (2024, est.)', value:642000000, suffix:'votes cast', cat:'Records'},
+  {rank:'#3', title:'Largest Installed Power Generation Capacity (est.)', value:470000, suffix:'MW', cat:'Power'},
+  {rank:'#4', title:'Largest Nuclear Power Capacity (est.)', value:8180, suffix:'MW', cat:'Power'},
+  {rank:'#1', title:'Largest Rooftop Solar Program (est.)', value:15000, suffix:'MW', cat:'Power'},
+  {rank:'#3', title:'Largest Biomass/Bioenergy Capacity (est.)', value:11000, suffix:'MW', cat:'Power'},
+  {rank:'#1', title:'Largest Green Hydrogen Production Target (est.)', value:5000000, suffix:'tonnes/yr by 2030', cat:'Power'},
+  {rank:'#2', title:'Largest LPG Consumer Market (est.)', value:290000000, suffix:'households', cat:'Power'},
+  {rank:'#3', title:'Largest Natural Gas Consumer (est.)', value:65000000000, suffix:'cubic metres/yr', cat:'Power'},
+  {rank:'#1', title:'Largest Power Transmission Network in South Asia (est.)', value:480000, suffix:'circuit km', cat:'Power'},
+  {rank:'#1', title:'Largest EV Charging Station Rollout (est.)', value:25000, suffix:'stations', cat:'Power'},
+  {rank:'#2', title:'Largest Ethanol Blending Program (est.)', value:20, suffix:'% blend rate', cat:'Power'},
+  {rank:'#1', title:'Largest Number of Dentists (est.)', value:300000, suffix:'dentists', cat:'MedPro'},
+  {rank:'#1', title:'Largest Number of Ayurvedic Doctors (est.)', value:500000, suffix:'practitioners', cat:'MedPro'},
+  {rank:'#2', title:'Largest Number of Pharmacists (est.)', value:1100000, suffix:'pharmacists', cat:'MedPro'},
+  {rank:'#1', title:'Largest Number of Physiotherapists (est.)', value:150000, suffix:'physiotherapists', cat:'MedPro'},
+  {rank:'#2', title:'Largest Number of Medical Colleges (est.)', value:700, suffix:'medical colleges', cat:'MedPro'},
+  {rank:'#1', title:'Largest Number of MBBS Seats Annually (est.)', value:118000, suffix:'seats/yr', cat:'MedPro'},
+  {rank:'#2', title:'Largest Number of Nursing Colleges (est.)', value:3200, suffix:'nursing colleges', cat:'MedPro'},
+  {rank:'#1', title:'Largest Community Health Worker Program (ASHA, est.)', value:1100000, suffix:'workers', cat:'MedPro'},
+  {rank:'#3', title:'Largest Number of Radiologists (est.)', value:15000, suffix:'radiologists', cat:'MedPro'},
+  {rank:'#2', title:'Largest Number of Surgeons (est.)', value:100000, suffix:'surgeons', cat:'MedPro'},
+  {rank:'#1', title:'Largest Number of Practicing Lawyers', value:2000000, suffix:'lawyers', cat:'Legal'},
+  {rank:'#1', title:'Largest Number of Law Schools (est.)', value:1700, suffix:'law schools', cat:'Legal'},
+  {rank:'#1', title:'Largest Backlog of Pending Court Cases (est.)', value:50000000, suffix:'pending cases', cat:'Legal'},
+  {rank:'#4', title:'Largest Number of High Courts (est.)', value:25, suffix:'high courts', cat:'Legal'},
+  {rank:'#1', title:'Largest Lok Adalat Dispute Resolution System (est.)', value:100000000, suffix:'cases resolved (cumulative)', cat:'Legal'},
+  {rank:'#1', title:'Largest Number of District Courts (est.)', value:3600, suffix:'courts', cat:'Legal'},
+  {rank:'#2', title:'Largest Legal Services Market (est.)', value:2500, suffix:'$ Million', cat:'Legal'},
+  {rank:'#1', title:'Largest Free Legal Aid Program (est.)', value:15000000, suffix:'beneficiaries/yr', cat:'Legal'},
+  {rank:'#1', title:'Largest Number of Judges Absolute (est.)', value:25000, suffix:'judges', cat:'Legal'},
+  {rank:'#3', title:'Largest Arbitration & Mediation Market in Asia (est.)', value:1500, suffix:'$ Million', cat:'Legal'},
+  {rank:'#1', title:'Largest Cricket-Playing Population (est.)', value:100000000, suffix:'players/fans', cat:'Cricket'},
+  {rank:'#1', title:'Most ICC Titles Won Combined (est.)', value:7, suffix:'titles', cat:'Cricket'},
+  {rank:'#1', title:'Largest Domestic Cricket League Revenue (IPL, est.)', value:1200, suffix:'$ Million/yr', cat:'Cricket'},
+  {rank:'#1', title:'Largest Number of Registered Cricket Players (est.)', value:3000000, suffix:'players', cat:'Cricket'},
+  {rank:'#1', title:'Largest International Cricket Stadium Network (est.)', value:52, suffix:'stadiums', cat:'Cricket'},
+  {rank:'#1', title:'Highest TV Viewership for a Cricket Event (est.)', value:518000000, suffix:'viewers', cat:'Cricket'},
+  {rank:'#1', title:'Largest Womens Cricket League Growth (WPL, est.)', value:1500000, suffix:'avg viewers', cat:'Cricket'},
+  {rank:'#2', title:'Largest Cricket Sponsorship Market (est.)', value:1100, suffix:'$ Million/yr', cat:'Cricket'},
+  {rank:'#1', title:'Largest Number of Cricket Academies (est.)', value:3000, suffix:'academies', cat:'Cricket'},
+  {rank:'#1', title:'Largest Fantasy Cricket User Base (est.)', value:180000000, suffix:'users', cat:'Cricket'},
+  {rank:'#2', title:'Largest Football Fanbase in Asia (est.)', value:100000000, suffix:'fans', cat:'Football'},
+  {rank:'#7', title:'Largest Football League Attendance in Asia (ISL, est.)', value:2000000, suffix:'attendees/season', cat:'Football'},
+  {rank:'#1', title:'Largest Number of Registered Football Players (est.)', value:2700000, suffix:'players', cat:'Football'},
+  {rank:'#1', title:'Largest Grassroots Football Program (est.)', value:6000000, suffix:'children enrolled', cat:'Football'},
+  {rank:'#2', title:'Largest Football Stadium Capacity in Asia (est.)', value:85000, suffix:'seats', cat:'Football'},
+  {rank:'#1', title:'Largest Womens Football Participation Growth (est.)', value:500000, suffix:'registered players', cat:'Football'},
+  {rank:'#2', title:'Largest Football Broadcasting Market (est.)', value:300, suffix:'$ Million/yr', cat:'Football'},
+  {rank:'#1', title:'Largest Football Academy Network (est.)', value:1500, suffix:'academies', cat:'Football'},
+  {rank:'#2', title:'Largest Futsal Participation Base (est.)', value:500000, suffix:'players', cat:'Football'},
+  {rank:'#1', title:'Largest School-Level Football Tournament (est.)', value:200000, suffix:'schools participating', cat:'Football'},
+  {rank:'#1', title:'Largest Olympic Contingent Sent (2024 Paris)', value:117, suffix:'athletes', cat:'OtherSports'},
+  {rank:'#1', title:'Most Olympic Gold Medals in Field Hockey (historical)', value:8, suffix:'gold medals', cat:'OtherSports'},
+  {rank:'#1', title:'Largest Badminton Fanbase Growth (est.)', value:20000000, suffix:'fans', cat:'OtherSports'},
+  {rank:'#1', title:'Largest Number of Traditional Wrestling Akhadas (est.)', value:3000, suffix:'akhadas', cat:'OtherSports'},
+  {rank:'#2', title:'Largest Shooting Sports Medal Haul (est.)', value:22, suffix:'medals', cat:'OtherSports'},
+  {rank:'#1', title:'Most Kabaddi World Cup Titles Won', value:4, suffix:'titles', cat:'OtherSports'},
+  {rank:'#3', title:'Largest Athletics Medal Growth in Asia (est.)', value:20, suffix:'medals', cat:'OtherSports'},
+  {rank:'#1', title:'Largest Paralympics Medal Growth (2024, est.)', value:29, suffix:'medals', cat:'OtherSports'},
+  {rank:'#2', title:'Largest Boxing Medal Tally in Asia (est.)', value:15, suffix:'medals', cat:'OtherSports'},
+  {rank:'#1', title:'Largest Sports Authority Training Centre Network (est.)', value:700, suffix:'centres', cat:'OtherSports'},
+  {rank:'#1', title:'Largest Chess Grandmaster Count Growth (est.)', value:85, suffix:'grandmasters', cat:'MindSports'},
+  {rank:'#1', title:'Youngest World Chess Champion Ever (2024)', value:18, suffix:'years old', cat:'MindSports'},
+  {rank:'#2', title:'Largest Number of FIDE-Rated Chess Players (est.)', value:300000, suffix:'rated players', cat:'MindSports'},
+  {rank:'#1', title:'Largest Online Chess Platform User Base (est.)', value:15000000, suffix:'users', cat:'MindSports'},
+  {rank:'#1', title:'Largest Number of Chess Academies (est.)', value:5000, suffix:'academies', cat:'MindSports'},
+  {rank:'#3', title:'Largest Bridge Card-Game Community in Asia (est.)', value:500000, suffix:'players', cat:'MindSports'},
+  {rank:'#1', title:'Largest Rubiks Cube Solving Community (est.)', value:2000000, suffix:'speedcubers', cat:'MindSports'},
+  {rank:'#2', title:'Largest Carrom Playing Population (est.)', value:50000000, suffix:'players', cat:'MindSports'},
+  {rank:'#1', title:'Largest Ludo/Snakes & Ladders Playing Base (est.)', value:300000000, suffix:'players', cat:'MindSports'},
+  {rank:'#1', title:'Largest Esports Chess Tournament Viewership in Asia (est.)', value:5000000, suffix:'viewers', cat:'MindSports'},
+  {rank:'#1', title:'Largest Kho-Kho Playing Population (est.)', value:20000000, suffix:'players', cat:'TradGames'},
+  {rank:'#1', title:'Largest Kabaddi League Franchise Value (est.)', value:500, suffix:'$ Million', cat:'TradGames'},
+  {rank:'#1', title:'Largest Gilli-Danda Playing Tradition (est.)', value:10000000, suffix:'players', cat:'TradGames'},
+  {rank:'#1', title:'Largest Mallakhamba Practitioner Base (est.)', value:500000, suffix:'practitioners', cat:'TradGames'},
+  {rank:'#1', title:'Largest Kalaripayattu Martial Art Base (est.)', value:300000, suffix:'practitioners', cat:'TradGames'},
+  {rank:'#1', title:'Largest Silambam Martial Art Community (est.)', value:200000, suffix:'practitioners', cat:'TradGames'},
+  {rank:'#1', title:'Largest Traditional Boat Race Festival Attendance (est.)', value:2000000, suffix:'spectators/yr', cat:'TradGames'},
+  {rank:'#1', title:'Largest Traditional Kushti Wrestling Community (est.)', value:500000, suffix:'wrestlers', cat:'TradGames'},
+  {rank:'#1', title:'Largest Tug of War Community Events (est.)', value:1000000, suffix:'participants/yr', cat:'TradGames'},
+  {rank:'#1', title:'Largest Traditional Archery Practice Base (est.)', value:200000, suffix:'practitioners', cat:'TradGames'},
+  {rank:'#2', title:'Largest Recorded Music Market in Asia (est.)', value:250, suffix:'$ Million/yr', cat:'Music'},
+  {rank:'#1', title:'Largest Classical Music Concert Circuit (est.)', value:5000, suffix:'concerts/yr', cat:'Music'},
+  {rank:'#1', title:'Largest Playback Singing Industry (est.)', value:5000, suffix:'songs/yr', cat:'Music'},
+  {rank:'#2', title:'Largest Live Music Concert Market (est.)', value:500, suffix:'$ Million/yr', cat:'Music'},
+  {rank:'#1', title:'Largest Devotional Music Audience Base (est.)', value:300000000, suffix:'listeners', cat:'Music'},
+  {rank:'#1', title:'Largest Number of Music Schools/Gharanas (est.)', value:20000, suffix:'institutions', cat:'Music'},
+  {rank:'#2', title:'Largest Independent Music Scene in Asia (est.)', value:10000, suffix:'indie artists', cat:'Music'},
+  {rank:'#1', title:'Largest Folk Music Style Diversity (est.)', value:200, suffix:'distinct styles', cat:'Music'},
+  {rank:'#2', title:'Largest Music Festival Attendance in Asia (est.)', value:2000000, suffix:'attendees/yr', cat:'Music'},
+  {rank:'#1', title:'Largest Traditional Instrument Manufacturing Cluster (est.)', value:200, suffix:'$ Million/yr', cat:'Music'},
+  {rank:'#1', title:'Largest Number of Languages Films Are Made In (est.)', value:20, suffix:'languages', cat:'FilmEnt'},
+  {rank:'#2', title:'Largest Box Office Footfalls Market (est.)', value:1500000000, suffix:'tickets/yr', cat:'FilmEnt'},
+  {rank:'#1', title:'Largest OTT Original Content Production Volume (est.)', value:500, suffix:'originals/yr', cat:'FilmEnt'},
+  {rank:'#2', title:'Largest Media & Entertainment Industry Revenue (est.)', value:28000, suffix:'$ Million/yr', cat:'FilmEnt'},
+  {rank:'#1', title:'Largest Number of Film Production Houses (est.)', value:5000, suffix:'production houses', cat:'FilmEnt'},
+  {rank:'#1', title:'Largest Regional Cinema Industry Diversity (est.)', value:20, suffix:'major industries', cat:'FilmEnt'},
+  {rank:'#2', title:'Largest VFX Outsourcing Hub for Films (est.)', value:1500, suffix:'$ Million/yr', cat:'FilmEnt'},
+  {rank:'#1', title:'Largest Film Festival Circuit (est.)', value:50, suffix:'major festivals/yr', cat:'FilmEnt'},
+  {rank:'#2', title:'Largest Celebrity Endorsement Market (est.)', value:2000, suffix:'$ Million/yr', cat:'FilmEnt'},
+  {rank:'#1', title:'Largest Multi-Language Film Dubbing Industry (est.)', value:3000, suffix:'films/yr dubbed', cat:'FilmEnt'},
+  {rank:'#2', title:'Largest Book Publishing Industry by Titles (est.)', value:90000, suffix:'titles/yr', cat:'Publishing'},
+  {rank:'#1', title:'Largest Newspaper Readership Base (est.)', value:425000000, suffix:'readers', cat:'Publishing'},
+  {rank:'#1', title:'Largest Number of Languages Newspapers Published In (est.)', value:100, suffix:'languages', cat:'Publishing'},
+  {rank:'#2', title:'Largest English-Language Book Market (est.)', value:8000, suffix:'$ Million/yr', cat:'Publishing'},
+  {rank:'#1', title:'Largest Number of Public Libraries (est.)', value:60000, suffix:'libraries', cat:'Publishing'},
+  {rank:'#3', title:'Largest Comic Book Market in Asia (est.)', value:200, suffix:'$ Million/yr', cat:'Publishing'},
+  {rank:'#1', title:'Largest Self-Publishing Author Base (est.)', value:50000, suffix:'authors/yr', cat:'Publishing'},
+  {rank:'#2', title:'Largest Academic Publishing Output (est.)', value:40000, suffix:'books/yr', cat:'Publishing'},
+  {rank:'#1', title:'Largest Number of Literary Festivals (est.)', value:100, suffix:'festivals/yr', cat:'Publishing'},
+  {rank:'#2', title:'Largest E-book Market in Asia (est.)', value:500, suffix:'$ Million/yr', cat:'Publishing'},
+  {rank:'#1', title:'Largest YouTube Monetized Creator Base (est.)', value:4000000, suffix:'channels', cat:'DigitalContent'},
+  {rank:'#2', title:'Largest Influencer Marketing Market (est.)', value:3500, suffix:'$ Million/yr', cat:'DigitalContent'},
+  {rank:'#1', title:'Largest Short-Video Content Creator Base (est.)', value:200000000, suffix:'creators', cat:'DigitalContent'},
+  {rank:'#2', title:'Largest Podcast Listener Base (est.)', value:150000000, suffix:'listeners', cat:'DigitalContent'},
+  {rank:'#1', title:'Largest Regional Language Content Creator Growth (est.)', value:60000000, suffix:'creators', cat:'DigitalContent'},
+  {rank:'#2', title:'Largest Live-Streaming Audience (est.)', value:400000000, suffix:'viewers', cat:'DigitalContent'},
+  {rank:'#1', title:'Largest Meme & Comedy Content Community (est.)', value:100000000, suffix:'followers', cat:'DigitalContent'},
+  {rank:'#2', title:'Largest Content Monetization Platform Creator Base (est.)', value:50000000, suffix:'creators', cat:'DigitalContent'},
+  {rank:'#1', title:'Largest Devotional Content Viewership (est.)', value:300000000, suffix:'viewers', cat:'DigitalContent'},
+  {rank:'#2', title:'Largest EdTech Content Creator Base (est.)', value:5000000, suffix:'educators', cat:'DigitalContent'},
+  {rank:'#3', title:'Largest Advertising Market (est.)', value:15000, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#1', title:'Largest Digital Advertising Growth Rate (est.)', value:25, suffix:'% yoy growth', cat:'AdMarketing'},
+  {rank:'#2', title:'Largest Outdoor Advertising Market in Asia (est.)', value:1000, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#1', title:'Largest Regional Language Advertising Market (est.)', value:5000, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#2', title:'Largest Influencer-Led Ad Spend Market (est.)', value:3500, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#1', title:'Largest Print Advertising Retention Market (est.)', value:3000, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#2', title:'Largest TV Advertising Market (est.)', value:8000, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#1', title:'Largest Rural Marketing Reach Programs (est.)', value:600000, suffix:'villages targeted', cat:'AdMarketing'},
+  {rank:'#3', title:'Largest Market Research Industry in Asia (est.)', value:1200, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#2', title:'Largest Programmatic Advertising Market (est.)', value:2000, suffix:'$ Million/yr', cat:'AdMarketing'},
+  {rank:'#2', title:'Largest Apparel Retail Market (est.)', value:100000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#1', title:'Largest Ethnic Wear Market (est.)', value:20000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#2', title:'Largest Footwear Retail Market (est.)', value:15000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#1', title:'Largest Bridal Wear Industry (est.)', value:5000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#2', title:'Largest Fast Fashion Growth Market (est.)', value:10000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#1', title:'Largest Fashion Designer Graduate Output (est.)', value:20000, suffix:'graduates/yr', cat:'Fashion'},
+  {rank:'#2', title:'Largest Online Fashion Retail Market (est.)', value:12000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#1', title:'Largest Handcrafted Fashion Jewellery Segment (est.)', value:8000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#2', title:'Largest Mens Grooming Market in Asia (est.)', value:4000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#1', title:'Largest Traditional Textile-Based Fashion Exports (est.)', value:5000, suffix:'$ Million/yr', cat:'Fashion'},
+  {rank:'#3', title:'Largest Online Retail Market by GMV (est.)', value:150000, suffix:'$ Million/yr', cat:'Ecommerce'},
+  {rank:'#1', title:'Largest Online Grocery Delivery Growth Market (est.)', value:10000, suffix:'$ Million/yr', cat:'Ecommerce'},
+  {rank:'#2', title:'Largest Quick-Commerce Market (est.)', value:6000, suffix:'$ Million/yr', cat:'Ecommerce'},
+  {rank:'#1', title:'Largest Online Grocery User Base (est.)', value:80000000, suffix:'users', cat:'Ecommerce'},
+  {rank:'#2', title:'Largest Cross-Border E-commerce Exports (est.)', value:5000, suffix:'$ Million/yr', cat:'Ecommerce'},
+  {rank:'#1', title:'Largest Rural E-commerce Penetration Program (est.)', value:50000000, suffix:'rural users', cat:'Ecommerce'},
+  {rank:'#3', title:'Largest Online Marketplace Seller Base (est.)', value:15000000, suffix:'sellers', cat:'Ecommerce'},
+  {rank:'#2', title:'Largest Social Commerce Market (est.)', value:4000, suffix:'$ Million/yr', cat:'Ecommerce'},
+  {rank:'#1', title:'Largest Cash-on-Delivery Order Share (est.)', value:40, suffix:'% of e-commerce orders', cat:'Ecommerce'},
+  {rank:'#3', title:'Largest B2B E-commerce Market (est.)', value:700000, suffix:'$ Million/yr', cat:'Ecommerce'},
+  {rank:'#2', title:'Largest Real Estate Market by Size (est.)', value:265000, suffix:'$ Million/yr', cat:'RealEstate'},
+  {rank:'#1', title:'Largest Affordable Housing Scheme (PMAY, est.)', value:30000000, suffix:'homes built', cat:'RealEstate'},
+  {rank:'#2', title:'Largest Commercial Office Space Market in Asia (est.)', value:700000000, suffix:'sq.ft', cat:'RealEstate'},
+  {rank:'#1', title:'Largest Co-working Space Growth Market (est.)', value:100000000, suffix:'sq.ft', cat:'RealEstate'},
+  {rank:'#2', title:'Largest Industrial Real Estate Market (est.)', value:400000000, suffix:'sq.ft', cat:'RealEstate'},
+  {rank:'#1', title:'Largest Urban Housing Shortage (est.)', value:19000000, suffix:'units shortage', cat:'RealEstate'},
+  {rank:'#5', title:'Largest REIT-Backed Property Market (est.)', value:8000, suffix:'$ Million AUM', cat:'RealEstate'},
+  {rank:'#1', title:'Largest Smart City Housing Program (est.)', value:100, suffix:'smart cities planned', cat:'RealEstate'},
+  {rank:'#2', title:'Largest Real Estate Employment Sector (est.)', value:70000000, suffix:'jobs', cat:'RealEstate'},
+  {rank:'#1', title:'Largest Slum Rehabilitation Program (est.)', value:10000000, suffix:'people rehabilitated', cat:'RealEstate'},
+  {rank:'#1', title:'Largest Life Insurance Policy Base (est.)', value:400000000, suffix:'policies', cat:'Insurance'},
+  {rank:'#2', title:'Largest Life Insurance Premium Market in Asia (est.)', value:100000, suffix:'$ Million/yr', cat:'Insurance'},
+  {rank:'#1', title:'Largest Crop Insurance Scheme (est.)', value:55000000, suffix:'farmers covered', cat:'Insurance'},
+  {rank:'#2', title:'Largest Health Insurance Premium Market (est.)', value:15000, suffix:'$ Million/yr', cat:'Insurance'},
+  {rank:'#1', title:'Largest Government-Backed Insurance Enrollment (est.)', value:500000000, suffix:'people enrolled', cat:'Insurance'},
+  {rank:'#2', title:'Largest General Insurance Market in Asia (est.)', value:30000, suffix:'$ Million/yr', cat:'Insurance'},
+  {rank:'#1', title:'Largest Micro-Insurance Coverage Program (est.)', value:200000000, suffix:'people', cat:'Insurance'},
+  {rank:'#2', title:'Largest Motor Insurance Market (est.)', value:12000, suffix:'$ Million/yr', cat:'Insurance'},
+  {rank:'#1', title:'Largest Number of Licensed Insurance Agents (est.)', value:2500000, suffix:'agents', cat:'Insurance'},
+  {rank:'#2', title:'Largest Reinsurance Market in Asia (est.)', value:5000, suffix:'$ Million/yr', cat:'Insurance'},
+  {rank:'#7', title:'Largest International Tourist Arrivals Destination (est.)', value:18000000, suffix:'tourists/yr', cat:'Tourism'},
+  {rank:'#1', title:'Largest Domestic Tourism Market (est.)', value:2500000000, suffix:'domestic trips/yr', cat:'Tourism'},
+  {rank:'#2', title:'Largest Tourism Revenue Growth Market in Asia (est.)', value:230000, suffix:'$ Million/yr', cat:'Tourism'},
+  {rank:'#1', title:'Largest Heritage Tourism Circuit (est.)', value:3691, suffix:'monuments open to visitors', cat:'Tourism'},
+  {rank:'#2', title:'Largest Medical Tourism Revenue (est.)', value:9000, suffix:'$ Million/yr', cat:'Tourism'},
+  {rank:'#1', title:'Largest Pilgrimage Tourism Market (est.)', value:600000000, suffix:'pilgrims/yr', cat:'Tourism'},
+  {rank:'#2', title:'Largest Eco-Tourism Growth Market in Asia (est.)', value:5000, suffix:'$ Million/yr', cat:'Tourism'},
+  {rank:'#1', title:'Largest Wellness Tourism Destination in Asia (est.)', value:7000, suffix:'$ Million/yr', cat:'Tourism'},
+  {rank:'#2', title:'Largest Wildlife Tourism Market in Asia (est.)', value:3000, suffix:'$ Million/yr', cat:'Tourism'},
+  {rank:'#1', title:'Largest Rural Tourism Development Program (est.)', value:40, suffix:'model villages developed', cat:'Tourism'},
+  {rank:'#3', title:'Largest Hotel Room Inventory in Asia (est.)', value:250000, suffix:'rooms', cat:'Hotels'},
+  {rank:'#2', title:'Largest Budget Hotel Chain Network (est.)', value:20000, suffix:'hotels', cat:'Hotels'},
+  {rank:'#1', title:'Largest Homestay Network (est.)', value:100000, suffix:'homestays', cat:'Hotels'},
+  {rank:'#2', title:'Largest Hospitality Employment Sector (est.)', value:45000000, suffix:'jobs', cat:'Hotels'},
+  {rank:'#1', title:'Largest Heritage Hotel Conversion Program (est.)', value:700, suffix:'heritage hotels', cat:'Hotels'},
+  {rank:'#2', title:'Largest Luxury Hotel Growth Market in Asia (est.)', value:5000, suffix:'$ Million/yr', cat:'Hotels'},
+  {rank:'#1', title:'Largest Number of Star-Rated Hotels (est.)', value:4000, suffix:'hotels', cat:'Hotels'},
+  {rank:'#2', title:'Largest MICE Conference Tourism Market in Asia (est.)', value:4000, suffix:'$ Million/yr', cat:'Hotels'},
+  {rank:'#1', title:'Largest Ashram/Retreat Stay Network (est.)', value:5000, suffix:'ashrams offering stays', cat:'Hotels'},
+  {rank:'#2', title:'Largest Cruise Tourism Growth Market in Asia (est.)', value:500000, suffix:'passengers/yr', cat:'Hotels'},
+  {rank:'#1', title:'Largest Himalayan Trekking Tourism Destination (est.)', value:5000000, suffix:'trekkers/yr', cat:'AdventureTourism'},
+  {rank:'#2', title:'Largest River Rafting Tourism Market in Asia (est.)', value:500000, suffix:'rafters/yr', cat:'AdventureTourism'},
+  {rank:'#1', title:'Largest Wildlife Safari Tourism Network (est.)', value:57, suffix:'reserves offering safaris', cat:'AdventureTourism'},
+  {rank:'#2', title:'Largest Scuba Diving Tourism Growth Market in Asia (est.)', value:200000, suffix:'divers/yr', cat:'AdventureTourism'},
+  {rank:'#1', title:'Largest Paragliding Tourism Destination (est.)', value:500000, suffix:'flights/yr', cat:'AdventureTourism'},
+  {rank:'#2', title:'Largest Desert Safari Tourism Market in Asia (est.)', value:1000000, suffix:'tourists/yr', cat:'AdventureTourism'},
+  {rank:'#1', title:'Largest Houseboat Tourism Network (est.)', value:2000, suffix:'houseboats', cat:'AdventureTourism'},
+  {rank:'#2', title:'Largest Skiing Tourism Growth Market in Asia (est.)', value:500000, suffix:'visitors/yr', cat:'AdventureTourism'},
+  {rank:'#1', title:'Largest Bird-Watching Tourism Destination (est.)', value:1300, suffix:'bird species recorded', cat:'AdventureTourism'},
+  {rank:'#2', title:'Largest Camping & Glamping Growth Market (est.)', value:3000, suffix:'$ Million/yr', cat:'AdventureTourism'},
+  {rank:'#1', title:'Largest Street Food Vendor Base (est.)', value:10000000, suffix:'vendors', cat:'Culinary'},
+  {rank:'#1', title:'Largest Number of Regional Cuisines (est.)', value:30, suffix:'major regional cuisines', cat:'Culinary'},
+  {rank:'#2', title:'Largest Food Delivery Restaurant Listings (est.)', value:700000, suffix:'restaurants listed', cat:'Culinary'},
+  {rank:'#1', title:'Largest Vegetarian Restaurant Market Share (est.)', value:40, suffix:'% of restaurants', cat:'Culinary'},
+  {rank:'#1', title:'Largest Spice Blend Diversity in Cuisine (est.)', value:100, suffix:'distinct spice blends', cat:'Culinary'},
+  {rank:'#2', title:'Largest Culinary School Network in Asia (est.)', value:500, suffix:'culinary schools', cat:'Culinary'},
+  {rank:'#1', title:'Largest Food Festival Attendance (est.)', value:5000000, suffix:'attendees/yr', cat:'Culinary'},
+  {rank:'#2', title:'Largest Ready-to-Eat Food Market in Asia (est.)', value:4000, suffix:'$ Million/yr', cat:'Culinary'},
+  {rank:'#1', title:'Largest Cloud Kitchen Network (est.)', value:50000, suffix:'cloud kitchens', cat:'Culinary'},
+  {rank:'#2', title:'Largest Michelin-Recognized Restaurant Growth (South Asia, est.)', value:5, suffix:'restaurants', cat:'Culinary'},
+  {rank:'#1', title:'Largest Tea-Consuming Nation', value:1100000, suffix:'tonnes/yr consumed', cat:'Beverages'},
+  {rank:'#2', title:'Largest Coffee-Consuming Growth Market (est.)', value:150000, suffix:'tonnes/yr', cat:'Beverages'},
+  {rank:'#1', title:'Largest Chai Culture Consumption Market (est.)', value:800000000, suffix:'daily cups', cat:'Beverages'},
+  {rank:'#2', title:'Largest Soft Drink Consumption Market in Asia (est.)', value:15000000000, suffix:'litres/yr', cat:'Beverages'},
+  {rank:'#1', title:'Largest Buttermilk/Lassi Consumption Market (est.)', value:5000000000, suffix:'litres/yr', cat:'Beverages'},
+  {rank:'#2', title:'Largest Packaged Water Market in Asia (est.)', value:3000, suffix:'$ Million/yr', cat:'Beverages'},
+  {rank:'#1', title:'Largest Ayurvedic Beverage Market (est.)', value:1500, suffix:'$ Million/yr', cat:'Beverages'},
+  {rank:'#2', title:'Largest Energy Drink Growth Market in Asia (est.)', value:800, suffix:'$ Million/yr', cat:'Beverages'},
+  {rank:'#1', title:'Largest Fruit Juice Consumption Market (est.)', value:2000, suffix:'$ Million/yr', cat:'Beverages'},
+  {rank:'#2', title:'Largest Craft Beer Growth Market in Asia (est.)', value:300, suffix:'$ Million/yr', cat:'Beverages'},
+  {rank:'#2', title:'Largest Confectionery Market in Asia (est.)', value:5000, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#1', title:'Largest Traditional Sweets (Mithai) Industry (est.)', value:8000, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#2', title:'Largest Chocolate Consumption Growth Market (est.)', value:1500, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#1', title:'Largest Bakery Products Market (est.)', value:10000, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#2', title:'Largest Biscuit Manufacturing Market in Asia (est.)', value:3000000, suffix:'tonnes/yr', cat:'Confectionery'},
+  {rank:'#1', title:'Largest Namkeen Savory Snacks Industry (est.)', value:6000, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#2', title:'Largest Ice Cream Market Growth in Asia (est.)', value:3000, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#1', title:'Largest Home-Based Sweet Shop Network (est.)', value:500000, suffix:'shops', cat:'Confectionery'},
+  {rank:'#2', title:'Largest Cake & Pastry Market Growth (est.)', value:1000, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#1', title:'Largest Ready-Mix Snack Food Export Market (est.)', value:1500, suffix:'$ Million/yr', cat:'Confectionery'},
+  {rank:'#3', title:'Largest Organized Retail Market in Asia (est.)', value:300000, suffix:'$ Million/yr', cat:'RetailMalls'},
+  {rank:'#2', title:'Largest Number of Shopping Malls in Asia (est.)', value:650, suffix:'malls', cat:'RetailMalls'},
+  {rank:'#1', title:'Largest Kirana Store Network (est.)', value:13000000, suffix:'stores', cat:'RetailMalls'},
+  {rank:'#2', title:'Largest Supermarket Chain Expansion (est.)', value:6000, suffix:'stores', cat:'RetailMalls'},
+  {rank:'#1', title:'Largest Wholesale/Cash & Carry Market (est.)', value:500000, suffix:'$ Million/yr', cat:'RetailMalls'},
+  {rank:'#2', title:'Largest Retail Employment Sector (est.)', value:46000000, suffix:'jobs', cat:'RetailMalls'},
+  {rank:'#1', title:'Largest Rural Retail Network Expansion (est.)', value:5000000, suffix:'rural outlets', cat:'RetailMalls'},
+  {rank:'#2', title:'Largest Franchise Business Market in Asia (est.)', value:55000, suffix:'$ Million/yr', cat:'RetailMalls'},
+  {rank:'#1', title:'Largest Direct Selling Market (est.)', value:2500, suffix:'$ Million/yr', cat:'RetailMalls'},
+  {rank:'#2', title:'Largest Duty-Free Retail Market in Asia (est.)', value:500, suffix:'$ Million/yr', cat:'RetailMalls'},
+  {rank:'#3', title:'Largest Biotechnology Industry (est.)', value:80000, suffix:'$ Million', cat:'Biotech'},
+  {rank:'#1', title:'Largest Vaccine Manufacturing Biotech Hub (est.)', value:3000, suffix:'$ Million revenue', cat:'Biotech'},
+  {rank:'#2', title:'Largest Agri-Biotech Market in Asia (est.)', value:500, suffix:'$ Million/yr', cat:'Biotech'},
+  {rank:'#1', title:'Largest Bt Cotton Cultivation Area (est.)', value:11000000, suffix:'hectares', cat:'Biotech'},
+  {rank:'#2', title:'Largest Bioinformatics Workforce in Asia (est.)', value:50000, suffix:'professionals', cat:'Biotech'},
+  {rank:'#3', title:'Largest Biosimilars Market (est.)', value:500, suffix:'$ Million/yr', cat:'Biotech'},
+  {rank:'#1', title:'Largest Number of Biotech Startups (est.)', value:6000, suffix:'startups', cat:'Biotech'},
+  {rank:'#2', title:'Largest Industrial Enzymes Market in Asia (est.)', value:400, suffix:'$ Million/yr', cat:'Biotech'},
+  {rank:'#1', title:'Largest Stem Cell Research Program (South Asia, est.)', value:50, suffix:'research centres', cat:'Biotech'},
+  {rank:'#2', title:'Largest Genomics/DNA Sequencing Market in Asia (est.)', value:300, suffix:'$ Million/yr', cat:'Biotech'},
+  {rank:'#4', title:'Largest Nanotechnology Research Output (est.)', value:15000, suffix:'papers/yr', cat:'Nanotech'},
+  {rank:'#1', title:'Largest Nano-Urea Fertilizer Program (est.)', value:2, suffix:'commercial plants', cat:'Nanotech'},
+  {rank:'#3', title:'Largest Nanomedicine Research Market in Asia (est.)', value:200, suffix:'$ Million/yr', cat:'Nanotech'},
+  {rank:'#1', title:'Largest Nano Mission Government Funding Program (est.)', value:100, suffix:'$ Million cumulative', cat:'Nanotech'},
+  {rank:'#2', title:'Largest Nanomaterials Manufacturing Growth Market (est.)', value:150, suffix:'$ Million/yr', cat:'Nanotech'},
+  {rank:'#4', title:'Largest Number of Nanotech Patents Filed (est.)', value:500, suffix:'patents/yr', cat:'Nanotech'},
+  {rank:'#1', title:'Largest Nano-Coatings Textile Application Market (est.)', value:100, suffix:'$ Million/yr', cat:'Nanotech'},
+  {rank:'#2', title:'Largest Nanotech Startup Ecosystem in Asia (est.)', value:200, suffix:'startups', cat:'Nanotech'},
+  {rank:'#3', title:'Largest Nanoelectronics Research Centre Network (est.)', value:20, suffix:'centres', cat:'Nanotech'},
+  {rank:'#2', title:'Largest Nanotech Water Purification Adoption (est.)', value:50000000, suffix:'households', cat:'Nanotech'},
+  {rank:'#5', title:'Largest Industrial Robot Installation Market (est.)', value:5000, suffix:'units/yr', cat:'Robotics'},
+  {rank:'#2', title:'Largest Manufacturing Automation Adoption Rate (est.)', value:25, suffix:'% adoption', cat:'Robotics'},
+  {rank:'#1', title:'Largest Agricultural Drone Usage Program (est.)', value:100000, suffix:'drones deployed', cat:'Robotics'},
+  {rank:'#3', title:'Largest Warehouse Automation Market in Asia (est.)', value:1500, suffix:'$ Million/yr', cat:'Robotics'},
+  {rank:'#2', title:'Largest Robotics Startup Ecosystem in Asia (est.)', value:500, suffix:'startups', cat:'Robotics'},
+  {rank:'#4', title:'Largest Service Robot Market (est.)', value:400, suffix:'$ Million/yr', cat:'Robotics'},
+  {rank:'#1', title:'Largest School Robotics Education Program (est.)', value:10000, suffix:'schools', cat:'Robotics'},
+  {rank:'#3', title:'Largest Surgical Robotics Adoption Market in Asia (est.)', value:200, suffix:'robotic systems', cat:'Robotics'},
+  {rank:'#2', title:'Largest AI Chatbot Enterprise Adoption Rate (est.)', value:60, suffix:'% adoption', cat:'Robotics'},
+  {rank:'#4', title:'Largest Drone Delivery Pilot Program (est.)', value:200, suffix:'pilot projects', cat:'Robotics'},
+  {rank:'#1', title:'Largest Indigenous Fighter Jet Program in South Asia (est.)', value:220, suffix:'aircraft ordered', cat:'AeroDefence'},
+  {rank:'#4', title:'Largest Defence Manufacturing Output (est.)', value:15000, suffix:'$ Million/yr', cat:'AeroDefence'},
+  {rank:'#1', title:'Largest Defence Exports Growth Market (est.)', value:2600, suffix:'$ Million/yr', cat:'AeroDefence'},
+  {rank:'#2', title:'Largest Missile Development Program in Asia (est.)', value:12, suffix:'missile systems', cat:'AeroDefence'},
+  {rank:'#1', title:'Largest Indigenous Aircraft Carrier Program (est.)', value:2, suffix:'carriers built', cat:'AeroDefence'},
+  {rank:'#4', title:'Largest Submarine Fleet (est.)', value:17, suffix:'submarines', cat:'AeroDefence'},
+  {rank:'#1', title:'Largest Space Launch Vehicle Manufacturing Base in South Asia (est.)', value:6, suffix:'launch pads', cat:'AeroDefence'},
+  {rank:'#2', title:'Largest Drone Defence Manufacturing Market in Asia (est.)', value:1000, suffix:'$ Million/yr', cat:'AeroDefence'},
+  {rank:'#1', title:'Largest Indigenous Battle Tank Program (est.)', value:250, suffix:'tanks produced', cat:'AeroDefence'},
+  {rank:'#4', title:'Largest Aircraft MRO Market in Asia (est.)', value:900, suffix:'$ Million/yr', cat:'AeroDefence'},
+  {rank:'#16', title:'Shipbuilding Output Volume (est.)', value:100, suffix:'ships/yr', cat:'Shipbuilding'},
+  {rank:'#1', title:'Largest Ship-Breaking Yard (Alang, est.)', value:30, suffix:'% of world ship recycling', cat:'Shipbuilding'},
+  {rank:'#2', title:'Largest Port Cargo Traffic in Asia (est.)', value:1560000000, suffix:'tonnes/yr', cat:'Shipbuilding'},
+  {rank:'#1', title:'Largest Coastline Shipping Network', value:7500, suffix:'km coastline', cat:'Shipbuilding'},
+  {rank:'#2', title:'Largest Container Terminal Capacity in Asia (est.)', value:25000000, suffix:'TEUs/yr', cat:'Shipbuilding'},
+  {rank:'#4', title:'Largest Merchant Navy Fleet (est.)', value:1500, suffix:'ships', cat:'Shipbuilding'},
+  {rank:'#1', title:'Largest Indigenous Warship Construction Program (est.)', value:40, suffix:'warships under construction', cat:'Shipbuilding'},
+  {rank:'#2', title:'Largest Port Modernization Program (Sagarmala, est.)', value:100000, suffix:'$ Million investment', cat:'Shipbuilding'},
+  {rank:'#3', title:'Largest Inland Waterway Cargo Movement (est.)', value:100000000, suffix:'tonnes/yr', cat:'Shipbuilding'},
+  {rank:'#1', title:'Largest Number of Fishing Harbors (est.)', value:350, suffix:'harbors', cat:'Shipbuilding'},
+  {rank:'#1', title:'Largest Clean India Sanitation Program (est.)', value:110000000, suffix:'toilets built', cat:'WaterSanitation'},
+  {rank:'#1', title:'Largest Piped Water Supply Program (est.)', value:150000000, suffix:'rural households connected', cat:'WaterSanitation'},
+  {rank:'#1', title:'Largest River Cleaning Program (Namami Gange, est.)', value:2500, suffix:'km river stretch covered', cat:'WaterSanitation'},
+  {rank:'#2', title:'Largest Wastewater Treatment Capacity Growth (est.)', value:30000, suffix:'MLD', cat:'WaterSanitation'},
+  {rank:'#1', title:'Largest Open Defecation Free Village Certification (est.)', value:600000, suffix:'villages', cat:'WaterSanitation'},
+  {rank:'#2', title:'Largest Rainwater Harvesting Program (est.)', value:5000000, suffix:'structures built', cat:'WaterSanitation'},
+  {rank:'#1', title:'Largest Groundwater Recharge Mission (est.)', value:8000, suffix:'villages covered', cat:'WaterSanitation'},
+  {rank:'#3', title:'Largest Desalination Plant Capacity in Asia (est.)', value:500, suffix:'MLD', cat:'WaterSanitation'},
+  {rank:'#1', title:'Largest Community Toilet Complex Network (est.)', value:500000, suffix:'complexes', cat:'WaterSanitation'},
+  {rank:'#2', title:'Largest Urban Water Recycling Program (est.)', value:30, suffix:'% reuse rate', cat:'WaterSanitation'},
+  {rank:'#1', title:'Largest Smart Cities Mission (est.)', value:100, suffix:'smart cities', cat:'UrbanDev'},
+  {rank:'#2', title:'Largest Metro Rail Expansion Program in Asia (est.)', value:27, suffix:'cities with metro', cat:'UrbanDev'},
+  {rank:'#1', title:'Largest Urban Housing Scheme (est.)', value:12000000, suffix:'homes sanctioned', cat:'UrbanDev'},
+  {rank:'#2', title:'Largest Municipal Solid Waste Management Program in Asia (est.)', value:150000, suffix:'tonnes/day processed', cat:'UrbanDev'},
+  {rank:'#1', title:'Largest Urban BRTS Mobility Network (est.)', value:25, suffix:'cities with BRTS', cat:'UrbanDev'},
+  {rank:'#2', title:'Largest Urban Green Space Development Program (est.)', value:50000, suffix:'hectares', cat:'UrbanDev'},
+  {rank:'#1', title:'Largest City-Level Air Quality Monitoring Network (est.)', value:500, suffix:'monitoring stations', cat:'UrbanDev'},
+  {rank:'#2', title:'Largest Urban Solar Rooftop Adoption Program (est.)', value:5000, suffix:'MW', cat:'UrbanDev'},
+  {rank:'#1', title:'Largest Urban Local Body Governance Network (est.)', value:4700, suffix:'urban local bodies', cat:'UrbanDev'},
+  {rank:'#2', title:'Largest Urban Slum Redevelopment Program in Asia (est.)', value:8000000, suffix:'people', cat:'UrbanDev'},
+  {rank:'#1', title:'Largest Rural Road Connectivity Program (est.)', value:750000, suffix:'km roads built', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Rural Employment Workdays Generated (est.)', value:3000000000, suffix:'workdays/yr', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Rural Electrification Program (est.)', value:26000000, suffix:'households connected', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Self-Help Group Network (est.)', value:9000000, suffix:'SHGs', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Rural Housing Program (est.)', value:29000000, suffix:'homes built', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Village Development Scheme Coverage (est.)', value:260000, suffix:'villages', cat:'RuralDev'},
+  {rank:'#2', title:'Largest Rural Internet Penetration Growth Market (est.)', value:400000000, suffix:'rural users', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Rural Sanitation Coverage (est.)', value:98, suffix:'% coverage', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Rural Livelihood Mission (est.)', value:90000000, suffix:'women mobilized', cat:'RuralDev'},
+  {rank:'#2', title:'Largest Rural Skill Development Program (est.)', value:5000000, suffix:'rural youth trained', cat:'RuralDev'},
+  {rank:'#1', title:'Largest Girl Child Welfare Scheme Coverage (est.)', value:100, suffix:'districts covered', cat:'WomenChild'},
+  {rank:'#1', title:'Largest Maternity Benefit Program (est.)', value:20000000, suffix:'mothers benefited', cat:'WomenChild'},
+  {rank:'#1', title:'Largest Anganwadi Childcare Centre Network (est.)', value:1400000, suffix:'centres', cat:'WomenChild'},
+  {rank:'#1', title:'Largest Women Self-Help Group Membership (est.)', value:90000000, suffix:'women', cat:'WomenChild'},
+  {rank:'#1', title:'Largest Womens Reservation in Local Governance (est.)', value:33, suffix:'% seats reserved', cat:'WomenChild'},
+  {rank:'#1', title:'Largest Working Womens Hostel Network (est.)', value:1000, suffix:'hostels', cat:'WomenChild'},
+  {rank:'#1', title:'Largest Child Immunization Program (est.)', value:26000000, suffix:'children/yr covered', cat:'WomenChild'},
+  {rank:'#2', title:'Largest Female Workforce Participation Growth (est.)', value:37, suffix:'% participation rate', cat:'WomenChild'},
+  {rank:'#1', title:'Largest One-Stop Crisis Centre Network for Women (est.)', value:800, suffix:'centres', cat:'WomenChild'},
+  {rank:'#2', title:'Largest Women Entrepreneur Growth Market in Asia (est.)', value:15000000, suffix:'women entrepreneurs', cat:'WomenChild'},
+  {rank:'#2', title:'Largest Elderly Population (60+, est.)', value:150000000, suffix:'people', cat:'ElderlyCare'},
+  {rank:'#1', title:'Largest Old-Age Pension Scheme Coverage (est.)', value:30000000, suffix:'beneficiaries', cat:'ElderlyCare'},
+  {rank:'#1', title:'Largest Senior Citizen Savings Scheme AUM (est.)', value:50000, suffix:'$ Million', cat:'ElderlyCare'},
+  {rank:'#2', title:'Largest Old Age Home Network Growth in Asia (est.)', value:3000, suffix:'homes', cat:'ElderlyCare'},
+  {rank:'#1', title:'Largest Elderly Healthcare Scheme Coverage (est.)', value:60000000, suffix:'seniors covered', cat:'ElderlyCare'},
+  {rank:'#2', title:'Largest Elderly Helpline Network Coverage (est.)', value:700, suffix:'districts covered', cat:'ElderlyCare'},
+  {rank:'#1', title:'Largest Joint-Family Living Tradition (est.)', value:60, suffix:'% joint family households', cat:'ElderlyCare'},
+  {rank:'#2', title:'Largest Retirement Community Market Growth in Asia (est.)', value:500, suffix:'$ Million/yr', cat:'ElderlyCare'},
+  {rank:'#1', title:'Largest Elderly Day-Care Centre Program (est.)', value:700, suffix:'centres', cat:'ElderlyCare'},
+  {rank:'#2', title:'Largest Geriatric Care Training Program in Asia (est.)', value:5000, suffix:'caregivers trained/yr', cat:'ElderlyCare'},
+  {rank:'#2', title:'Largest Disabled Population Absolute (est.)', value:27000000, suffix:'people', cat:'Disability'},
+  {rank:'#1', title:'Largest Disability Pension Scheme (est.)', value:10000000, suffix:'beneficiaries', cat:'Disability'},
+  {rank:'#1', title:'Largest Accessible Infrastructure Program (est.)', value:1600, suffix:'buildings made accessible', cat:'Disability'},
+  {rank:'#2', title:'Largest Disability Employment Reservation Quota in Asia (est.)', value:4, suffix:'% reservation', cat:'Disability'},
+  {rank:'#1', title:'Largest Sign Language Interpreter Training Program (est.)', value:5000, suffix:'interpreters', cat:'Disability'},
+  {rank:'#2', title:'Largest Assistive Technology Distribution Program in Asia (est.)', value:3000000, suffix:'devices distributed', cat:'Disability'},
+  {rank:'#1', title:'Largest Special Education School Network (est.)', value:3000, suffix:'schools', cat:'Disability'},
+  {rank:'#2', title:'Largest Para-Sports Development Program Growth (est.)', value:50000, suffix:'para-athletes trained', cat:'Disability'},
+  {rank:'#1', title:'Largest Disability ID Card Program (UDID, est.)', value:30000000, suffix:'cards issued', cat:'Disability'},
+  {rank:'#2', title:'Largest Disability Rights Legal Framework Coverage in Asia (est.)', value:21, suffix:'disability types recognized', cat:'Disability'},
+  {rank:'#1', title:'Largest Number of Registered News Publications (est.)', value:140000, suffix:'publications', cat:'MediaJournalism'},
+  {rank:'#1', title:'Largest Number of Accredited Journalists (est.)', value:20000, suffix:'journalists', cat:'MediaJournalism'},
+  {rank:'#2', title:'Largest News Television Channel Network (est.)', value:400, suffix:'news channels', cat:'MediaJournalism'},
+  {rank:'#1', title:'Largest Vernacular Media Market (est.)', value:19, suffix:'language news markets', cat:'MediaJournalism'},
+  {rank:'#2', title:'Largest Digital News Consumption Market (est.)', value:500000000, suffix:'digital news readers', cat:'MediaJournalism'},
+  {rank:'#1', title:'Largest Community Radio Network (est.)', value:400, suffix:'stations', cat:'MediaJournalism'},
+  {rank:'#2', title:'Largest Fact-Checking Media Ecosystem in Asia (est.)', value:50, suffix:'fact-check organizations', cat:'MediaJournalism'},
+  {rank:'#1', title:'Largest Rural News Distribution Network (est.)', value:600000, suffix:'villages reached', cat:'MediaJournalism'},
+  {rank:'#2', title:'Largest Journalism School Network in Asia (est.)', value:800, suffix:'institutes', cat:'MediaJournalism'},
+  {rank:'#1', title:'Largest News Agency Wire Service Network (est.)', value:500, suffix:'bureaus', cat:'MediaJournalism'},
+  {rank:'#2', title:'Largest Podcast Listener Growth Market (est.)', value:150000000, suffix:'listeners', cat:'Podcasting'},
+  {rank:'#1', title:'Largest Regional Language Podcast Production (est.)', value:50000, suffix:'podcasts', cat:'Podcasting'},
+  {rank:'#2', title:'Largest Audio Streaming Platform User Base (est.)', value:200000000, suffix:'users', cat:'Podcasting'},
+  {rank:'#1', title:'Largest Devotional Podcast Genre Growth (est.)', value:10000, suffix:'shows', cat:'Podcasting'},
+  {rank:'#2', title:'Largest Podcast Advertising Market in Asia (est.)', value:100, suffix:'$ Million/yr', cat:'Podcasting'},
+  {rank:'#1', title:'Largest Audiobook Market Growth in Asia (est.)', value:50000000, suffix:'users', cat:'Podcasting'},
+  {rank:'#2', title:'Largest Video Podcast Growth Market (est.)', value:20000000, suffix:'viewers', cat:'Podcasting'},
+  {rank:'#1', title:'Largest Business/Startup Podcast Community (est.)', value:5000, suffix:'shows', cat:'Podcasting'},
+  {rank:'#2', title:'Largest Comedy Podcast Genre Market (est.)', value:3000, suffix:'shows', cat:'Podcasting'},
+  {rank:'#1', title:'Largest Independent Podcaster Base (est.)', value:100000, suffix:'podcasters', cat:'Podcasting'},
+  {rank:'#1', title:'Largest Mobile Gaming Market by Downloads (est.)', value:9000000000, suffix:'downloads/yr', cat:'GamingInd'},
+  {rank:'#3', title:'Largest Gaming Revenue Market (est.)', value:3800, suffix:'$ Million/yr', cat:'GamingInd'},
+  {rank:'#1', title:'Largest Fantasy Sports Gaming Market (est.)', value:180000000, suffix:'users', cat:'GamingInd'},
+  {rank:'#2', title:'Largest Esports Prize Pool Growth Market in Asia (est.)', value:5, suffix:'$ Million/yr', cat:'GamingInd'},
+  {rank:'#1', title:'Largest Casual Gaming Player Base (est.)', value:450000000, suffix:'players', cat:'GamingInd'},
+  {rank:'#2', title:'Largest Game Development Studio Hub in Asia (est.)', value:500, suffix:'studios', cat:'GamingInd'},
+  {rank:'#1', title:'Largest Real-Money Gaming Market (est.)', value:3000, suffix:'$ Million/yr', cat:'GamingInd'},
+  {rank:'#2', title:'Largest Console Gaming Growth Market in Asia (est.)', value:200, suffix:'$ Million/yr', cat:'GamingInd'},
+  {rank:'#1', title:'Largest Rural Mobile Gaming Penetration (est.)', value:200000000, suffix:'rural gamers', cat:'GamingInd'},
+  {rank:'#2', title:'Largest Esports Tournament Viewership in Asia (est.)', value:50000000, suffix:'viewers', cat:'GamingInd'},
+  {rank:'#2', title:'Largest Animation & VFX Industry Revenue (est.)', value:1500, suffix:'$ Million/yr', cat:'AnimationVFX'},
+  {rank:'#1', title:'Largest VFX Outsourcing Destination for Hollywood (est.)', value:40, suffix:'% of global VFX outsourcing', cat:'AnimationVFX'},
+  {rank:'#2', title:'Largest Animation Studio Hub in Asia (est.)', value:500, suffix:'studios', cat:'AnimationVFX'},
+  {rank:'#1', title:'Largest Animation Training Institute Network (est.)', value:500, suffix:'institutes', cat:'AnimationVFX'},
+  {rank:'#2', title:'Largest 3D Animation Content Production Market (est.)', value:300, suffix:'$ Million/yr', cat:'AnimationVFX'},
+  {rank:'#1', title:'Largest Childrens Animated Content Market (est.)', value:200, suffix:'$ Million/yr', cat:'AnimationVFX'},
+  {rank:'#2', title:'Largest Game Asset Outsourcing Market in Asia (est.)', value:150, suffix:'$ Million/yr', cat:'AnimationVFX'},
+  {rank:'#1', title:'Largest Motion Capture Studio Network (est.)', value:50, suffix:'studios', cat:'AnimationVFX'},
+  {rank:'#2', title:'Largest Post-Production Services Market in Asia (est.)', value:700, suffix:'$ Million/yr', cat:'AnimationVFX'},
+  {rank:'#1', title:'Largest Animation Industry Workforce (est.)', value:200000, suffix:'professionals', cat:'AnimationVFX'},
+  {rank:'#2', title:'Largest Architecture Firm Network in Asia (est.)', value:15000, suffix:'firms', cat:'ArchDesign'},
+  {rank:'#1', title:'Largest Green Building Certification Program (est.)', value:10000, suffix:'certified buildings', cat:'ArchDesign'},
+  {rank:'#2', title:'Largest Interior Design Market Growth in Asia (est.)', value:30000, suffix:'$ Million/yr', cat:'ArchDesign'},
+  {rank:'#1', title:'Largest Number of Registered Architects (est.)', value:130000, suffix:'architects', cat:'ArchDesign'},
+  {rank:'#2', title:'Largest Urban Planning Institute Network in Asia (est.)', value:100, suffix:'institutes', cat:'ArchDesign'},
+  {rank:'#1', title:'Largest Heritage Conservation Architecture Program (est.)', value:3691, suffix:'monuments', cat:'ArchDesign'},
+  {rank:'#2', title:'Largest Landscape Architecture Market Growth (est.)', value:2000, suffix:'$ Million/yr', cat:'ArchDesign'},
+  {rank:'#1', title:'Largest Affordable Housing Design Innovation Program (est.)', value:100, suffix:'design models', cat:'ArchDesign'},
+  {rank:'#2', title:'Largest Net-Zero Building Growth Market in Asia (est.)', value:500, suffix:'buildings', cat:'ArchDesign'},
+  {rank:'#1', title:'Largest Design Education Institute Network (est.)', value:20, suffix:'design institutes', cat:'ArchDesign'},
+  {rank:'#1', title:'Largest Handicraft Domestic Retail Market (est.)', value:6000, suffix:'$ Million/yr', cat:'HandicraftRetail'},
+  {rank:'#1', title:'Largest Number of Craft Clusters (est.)', value:3000, suffix:'clusters', cat:'HandicraftRetail'},
+  {rank:'#1', title:'Largest Craft Mela (Fair) Network (est.)', value:500, suffix:'fairs/yr', cat:'HandicraftRetail'},
+  {rank:'#2', title:'Largest Blue Pottery/Ceramic Craft Market (est.)', value:200, suffix:'$ Million/yr', cat:'HandicraftRetail'},
+  {rank:'#1', title:'Largest Handmade Paper Industry (est.)', value:100, suffix:'$ Million/yr', cat:'HandicraftRetail'},
+  {rank:'#2', title:'Largest Metal Craft Export Market (est.)', value:150, suffix:'$ Million/yr', cat:'HandicraftRetail'},
+  {rank:'#1', title:'Largest Stone Carving Craft Cluster Network (est.)', value:300, suffix:'clusters', cat:'HandicraftRetail'},
+  {rank:'#2', title:'Largest Bamboo & Cane Craft Market Growth (est.)', value:500, suffix:'$ Million/yr', cat:'HandicraftRetail'},
+  {rank:'#1', title:'Largest Craft Export Promotion Council Network (est.)', value:7000, suffix:'member exporters', cat:'HandicraftRetail'},
+  {rank:'#2', title:'Largest Traditional Toy Craft Market Growth (est.)', value:300, suffix:'$ Million/yr', cat:'HandicraftRetail'},
+  {rank:'#1', title:'Largest Electric Two-Wheeler Market (est.)', value:1000000, suffix:'units/yr', cat:'EVEcosystem'},
+  {rank:'#3', title:'Largest Electric Bus Fleet (est.)', value:5000, suffix:'buses', cat:'EVEcosystem'},
+  {rank:'#1', title:'Largest EV Battery Swapping Network (est.)', value:5000, suffix:'swap stations', cat:'EVEcosystem'},
+  {rank:'#2', title:'Largest Domestic EV Battery Manufacturing Growth Market (est.)', value:50, suffix:'GWh capacity planned', cat:'EVEcosystem'},
+  {rank:'#1', title:'Largest EV Subsidy Program (FAME, est.)', value:1600000, suffix:'EVs subsidized', cat:'EVEcosystem'},
+  {rank:'#2', title:'Largest Electric Three-Wheeler Commercial Market (est.)', value:500000, suffix:'units/yr', cat:'EVEcosystem'},
+  {rank:'#1', title:'Largest Hydrogen Fuel Cell Vehicle Pilot Program (est.)', value:15, suffix:'pilot vehicles', cat:'EVEcosystem'},
+  {rank:'#2', title:'Largest EV Charging Infrastructure Growth Market (est.)', value:25000, suffix:'stations', cat:'EVEcosystem'},
+  {rank:'#1', title:'Largest EV Battery Recycling Program (est.)', value:5, suffix:'GWh recycled/yr', cat:'EVEcosystem'},
+  {rank:'#2', title:'Largest Green Vehicle Financing Market in Asia (est.)', value:5000, suffix:'$ Million/yr', cat:'EVEcosystem'},
+  {rank:'#1', title:'Largest Number of Foreign Satellites Launched (est.)', value:430, suffix:'foreign satellites (cumulative)', cat:'SpaceExplore'},
+  {rank:'#4', title:'Largest Space Agency Budget (est.)', value:1900, suffix:'$ Million/yr', cat:'SpaceExplore'},
+  {rank:'#1', title:'First Nation to Land Near Lunar South Pole (2023)', value:2023, suffix:'year of achievement', cat:'SpaceExplore'},
+  {rank:'#1', title:'Largest Human Spaceflight Program in Development (est.)', value:3, suffix:'planned Gaganyaan missions', cat:'SpaceExplore'},
+  {rank:'#2', title:'Largest Satellite Navigation System Coverage in Asia (est.)', value:7, suffix:'NavIC satellites', cat:'SpaceExplore'},
+  {rank:'#1', title:'Largest Space Startup Ecosystem in South Asia (est.)', value:200, suffix:'space startups', cat:'SpaceExplore'},
+  {rank:'#2', title:'Largest Remote Sensing Satellite Constellation in Asia (est.)', value:50, suffix:'satellites in orbit', cat:'SpaceExplore'},
+  {rank:'#1', title:'Largest Commercial Space Launch Market Growth in Asia (est.)', value:1000, suffix:'$ Million/yr', cat:'SpaceExplore'},
+  {rank:'#4', title:'Largest Space Sector Private Investment Market (est.)', value:300, suffix:'$ Million/yr', cat:'SpaceExplore'},
+  {rank:'#1', title:'Largest Rocket Launch Site Network (est.)', value:2, suffix:'launch sites', cat:'SpaceExplore'},
+  {rank:'#6', title:'Largest Uranium Reserve Holder (est.)', value:200000, suffix:'tonnes reserves', cat:'NuclearRes'},
+  {rank:'#1', title:'Largest Thorium Reserve Holder', value:963000, suffix:'tonnes reserves', cat:'NuclearRes'},
+  {rank:'#4', title:'Largest Number of Nuclear Power Plants Under Construction (est.)', value:8, suffix:'plants under construction', cat:'NuclearRes'},
+  {rank:'#2', title:'Largest Nuclear Research Reactor Network in Asia (est.)', value:8, suffix:'research reactors', cat:'NuclearRes'},
+  {rank:'#1', title:'Largest Indigenous Nuclear Reactor Design Program (est.)', value:700, suffix:'MW indigenous reactor design', cat:'NuclearRes'},
+  {rank:'#4', title:'Largest Nuclear Fuel Cycle Facility Network (est.)', value:5, suffix:'fuel fabrication facilities', cat:'NuclearRes'},
+  {rank:'#2', title:'Largest Nuclear Medicine Isotope Production in Asia (est.)', value:1000000, suffix:'doses/yr', cat:'NuclearRes'},
+  {rank:'#4', title:'Largest Fast Breeder Reactor Program (est.)', value:1, suffix:'prototype reactor', cat:'NuclearRes'},
+  {rank:'#2', title:'Largest Nuclear Research Workforce in Asia (est.)', value:35000, suffix:'scientists/engineers', cat:'NuclearRes'},
+  {rank:'#4', title:'Largest Nuclear Desalination Pilot Program (est.)', value:1, suffix:'pilot plant', cat:'NuclearRes'},
+  {rank:'#1', title:'Largest Kayaking & Canoeing Community (est.)', value:500000, suffix:'practitioners', cat:'WaterSports'},
+  {rank:'#2', title:'Largest Surfing Community Growth in Asia (est.)', value:100000, suffix:'surfers', cat:'WaterSports'},
+  {rank:'#1', title:'Largest Traditional Boat Racing Competitive Circuit (est.)', value:100, suffix:'boat races/yr', cat:'WaterSports'},
+  {rank:'#2', title:'Largest Sailing Sport Community Growth in Asia (est.)', value:50000, suffix:'sailors', cat:'WaterSports'},
+  {rank:'#1', title:'Largest Public Swimming Pool Infrastructure Program (est.)', value:5000, suffix:'public pools', cat:'WaterSports'},
+  {rank:'#2', title:'Largest Water Polo Community in Asia (est.)', value:20000, suffix:'players', cat:'WaterSports'},
+  {rank:'#1', title:'Largest River Rafting Competitive Circuit (est.)', value:50, suffix:'events/yr', cat:'WaterSports'},
+  {rank:'#2', title:'Largest Open Water Swimming Event Participation in Asia (est.)', value:100000, suffix:'participants/yr', cat:'WaterSports'},
+  {rank:'#1', title:'Largest Coastal Lifeguard Training Program (est.)', value:5000, suffix:'lifeguards trained/yr', cat:'WaterSports'},
+  {rank:'#2', title:'Largest Jet Skiing Tourism Growth Market (est.)', value:200000, suffix:'tourists/yr', cat:'WaterSports'},
+  {rank:'#1', title:'Largest Ayurveda Industry Market Size (est.)', value:8000, suffix:'$ Million/yr', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Yoga & Wellness Tourism Market (est.)', value:7000, suffix:'$ Million/yr', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Naturopathy Treatment Centre Network (est.)', value:500, suffix:'centres', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Homeopathy Practitioner Base (est.)', value:300000, suffix:'practitioners', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Unani Medicine Practitioner Base (est.)', value:50000, suffix:'practitioners', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Siddha Medicine Practitioner Base (est.)', value:30000, suffix:'practitioners', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Herbal Medicine Export Market (est.)', value:1500, suffix:'$ Million/yr', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Panchakarma Wellness Centre Network (est.)', value:3000, suffix:'centres', cat:'TradMedicine'},
+  {rank:'#1', title:'Host of WHO Global Centre for Traditional Medicine', value:1, suffix:'global centre hosted', cat:'TradMedicine'},
+  {rank:'#2', title:'Largest Herbal Cosmetics Market Growth in Asia (est.)', value:2000, suffix:'$ Million/yr', cat:'TradMedicine'},
+  {rank:'#1', title:'Largest Combined Livestock Population (est.)', value:535000000, suffix:'livestock', cat:'VetAnimal'},
+  {rank:'#1', title:'Largest Number of Veterinary Colleges (est.)', value:50, suffix:'colleges', cat:'VetAnimal'},
+  {rank:'#1', title:'Largest Animal Husbandry Workforce (est.)', value:80000000, suffix:'people employed', cat:'VetAnimal'},
+  {rank:'#1', title:'Largest Livestock Vaccination Program (est.)', value:500000000, suffix:'animals vaccinated/yr', cat:'VetAnimal'},
+  {rank:'#2', title:'Largest Goat Population (est.)', value:150000000, suffix:'goats', cat:'VetAnimal'},
+  {rank:'#2', title:'Largest Sheep Population (est.)', value:74000000, suffix:'sheep', cat:'VetAnimal'},
+  {rank:'#1', title:'Largest Poultry Population (est.)', value:850000000, suffix:'poultry birds', cat:'VetAnimal'},
+  {rank:'#2', title:'Largest Cattle Population (est.)', value:190000000, suffix:'cattle', cat:'VetAnimal'},
+  {rank:'#1', title:'Largest Animal Welfare Board Network (est.)', value:700, suffix:'SPCA units', cat:'VetAnimal'},
+  {rank:'#1', title:'Largest Livestock Artificial Insemination Program (est.)', value:100000000, suffix:'inseminations/yr', cat:'VetAnimal'},
+  {rank:'#3', title:'Largest Cybersecurity Workforce (est.)', value:300000, suffix:'professionals', cat:'Cybersecurity'},
+  {rank:'#2', title:'Largest Cybersecurity Market Growth in Asia (est.)', value:4000, suffix:'$ Million/yr', cat:'Cybersecurity'},
+  {rank:'#3', title:'Largest Number of Reported Cyberattacks (est.)', value:16000000, suffix:'incidents/yr', cat:'Cybersecurity'},
+  {rank:'#2', title:'Largest Ethical Hacker Community in Asia (est.)', value:500000, suffix:'certified professionals', cat:'Cybersecurity'},
+  {rank:'#3', title:'Largest Data Protection Compliance Market Growth (est.)', value:2000, suffix:'$ Million/yr', cat:'Cybersecurity'},
+  {rank:'#2', title:'Largest IT Services Delivery Workforce (est.)', value:5400000, suffix:'IT professionals', cat:'Cybersecurity'},
+  {rank:'#3', title:'Largest Global Capability Centres Hub (est.)', value:1700, suffix:'GCCs', cat:'Cybersecurity'},
+  {rank:'#2', title:'Largest Cloud Security Market Growth in Asia (est.)', value:1500, suffix:'$ Million/yr', cat:'Cybersecurity'},
+  {rank:'#3', title:'Largest Cyber Insurance Market Growth (est.)', value:500, suffix:'$ Million/yr', cat:'Cybersecurity'},
+  {rank:'#2', title:'Largest Certified Information Security Professional Base in Asia (est.)', value:100000, suffix:'certified professionals', cat:'Cybersecurity'},
+  {rank:'#2', title:'Largest Photography Equipment Market in Asia (est.)', value:1500, suffix:'$ Million/yr', cat:'Photography'},
+  {rank:'#1', title:'Largest Wedding Photography Industry (est.)', value:3000, suffix:'$ Million/yr', cat:'Photography'},
+  {rank:'#2', title:'Largest Stock Photography Contributor Base in Asia (est.)', value:500000, suffix:'contributors', cat:'Photography'},
+  {rank:'#1', title:'Largest Number of Photography Clubs/Societies (est.)', value:5000, suffix:'clubs', cat:'Photography'},
+  {rank:'#2', title:'Largest Photojournalism Community in Asia (est.)', value:20000, suffix:'photojournalists', cat:'Photography'},
+  {rank:'#1', title:'Largest Number of Art Galleries (est.)', value:2000, suffix:'galleries', cat:'Photography'},
+  {rank:'#2', title:'Largest Contemporary Art Market Growth in Asia (est.)', value:1000, suffix:'$ Million/yr', cat:'Photography'},
+  {rank:'#1', title:'Largest Folk & Tribal Art Style Diversity (est.)', value:100, suffix:'distinct art styles', cat:'Photography'},
+  {rank:'#2', title:'Largest Digital Art/NFT Creator Base in Asia (est.)', value:100000, suffix:'creators', cat:'Photography'},
+  {rank:'#1', title:'Largest Public Mural & Street Art Program (est.)', value:5000, suffix:'murals', cat:'Photography'},
+  {rank:'#1', title:'Largest Number of Sahitya Akademi Recognized Languages (est.)', value:24, suffix:'languages', cat:'Literature'},
+  {rank:'#1', title:'Largest Number of Literature Nobel Laureates in South Asia', value:1, suffix:'laureate', cat:'Literature'},
+  {rank:'#2', title:'Largest Poetry Publishing Market in Asia (est.)', value:15000, suffix:'titles/yr', cat:'Literature'},
+  {rank:'#1', title:'Largest Number of Regional Literary Academies (est.)', value:24, suffix:'state academies', cat:'Literature'},
+  {rank:'#2', title:'Largest Translation Publishing Market in Asia (est.)', value:5000, suffix:'translated titles/yr', cat:'Literature'},
+  {rank:'#1', title:'Largest Literary Festival Attendance (est.)', value:500000, suffix:'attendees/yr', cat:'Literature'},
+  {rank:'#2', title:'Largest Childrens Literature Market Growth in Asia (est.)', value:3000, suffix:'$ Million/yr', cat:'Literature'},
+  {rank:'#1', title:'Largest Manuscript Preservation Program (est.)', value:5000000, suffix:'manuscripts documented', cat:'Literature'},
+  {rank:'#2', title:'Largest Book Fair Attendance in Asia (est.)', value:1500000, suffix:'visitors/yr', cat:'Literature'},
+  {rank:'#1', title:'Largest Number of National Literary Award Categories (est.)', value:24, suffix:'award categories', cat:'Literature'},
+  {rank:'#1', title:'Largest Handloom Worker Population (est.)', value:3500000, suffix:'weavers', cat:'Handloom'},
+  {rank:'#1', title:'Largest Handloom Cluster Network (est.)', value:700, suffix:'clusters', cat:'Handloom'},
+  {rank:'#1', title:'Largest Number of GI-Tagged Handloom Products (est.)', value:50, suffix:'GI tags', cat:'Handloom'},
+  {rank:'#1', title:'Largest Handloom Export Market (est.)', value:2000, suffix:'$ Million/yr', cat:'Handloom'},
+  {rank:'#1', title:'Largest Number of Handlooms in Use (est.)', value:3500000, suffix:'looms', cat:'Handloom'},
+  {rank:'#1', title:'Largest Women Weaver Participation Rate (est.)', value:70, suffix:'% of weavers', cat:'Handloom'},
+  {rank:'#1', title:'Largest Handloom Cooperative Society Network (est.)', value:15000, suffix:'societies', cat:'Handloom'},
+  {rank:'#1', title:'Largest Handloom Design Registration Program (est.)', value:500, suffix:'designs registered/yr', cat:'Handloom'},
+  {rank:'#1', title:'Largest Handloom Mark Certification Program (est.)', value:1000000, suffix:'products certified', cat:'Handloom'},
+  {rank:'#1', title:'Largest Traditional Sari Weaving Style Diversity (est.)', value:50, suffix:'distinct weaving styles', cat:'Handloom'},
+  {rank:'#1', title:'Largest Laptop Assembly Market (PLI Scheme, est.)', value:10000000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#2', title:'Largest Desktop PC Manufacturing Base (est.)', value:3000000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Server Manufacturing Growth Market (est.)', value:200000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#2', title:'Largest Motherboard Assembly Hub (est.)', value:1500000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#2', title:'Largest Semiconductor Chip Design Workforce (est.)', value:250000, suffix:'engineers', cat:'CompMfg'},
+  {rank:'#1', title:'Largest Semiconductor Fab Investment Under Development (est.)', value:91000, suffix:'$ Million committed', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Chip Assembly & Testing (OSAT) Facility Investment (est.)', value:3000, suffix:'$ Million', cat:'CompMfg'},
+  {rank:'#3', title:'Largest PCB Manufacturing Growth Market (est.)', value:12000, suffix:'$ Million industry', cat:'CompMfg'},
+  {rank:'#2', title:'Largest Computer Peripheral Manufacturing Hub (est.)', value:50000000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Monitor/Display Assembly Market (est.)', value:8000000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#2', title:'Largest Printer Manufacturing & Assembly Base (est.)', value:4000000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Networking Equipment Manufacturing Growth Market (est.)', value:3000, suffix:'$ Million', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Data Storage Device Assembly Market (est.)', value:15000000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#2', title:'Largest Tablet PC Manufacturing Base (est.)', value:4000000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Workstation/HPC Assembly Market (est.)', value:200000, suffix:'units/yr', cat:'CompMfg'},
+  {rank:'#1', title:'Largest National Supercomputing Hardware Assembly Program (est.)', value:33, suffix:'petaflops assembled', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Embedded Systems Manufacturing Hub (est.)', value:5000, suffix:'$ Million industry', cat:'CompMfg'},
+  {rank:'#2', title:'Largest IoT Device Manufacturing Growth Market (est.)', value:3000000000, suffix:'devices deployed (cumulative)', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Laptop Battery/Power Component Assembly Market (est.)', value:4000, suffix:'$ Million industry', cat:'CompMfg'},
+  {rank:'#3', title:'Largest Cooling System Component Manufacturing Growth Market (est.)', value:1500, suffix:'$ Million', cat:'CompMfg'},
+  {rank:'#1', title:'Largest Electronics Manufacturing Cluster Network (est.)', value:200, suffix:'clusters', cat:'CompMfg'},
+  {rank:'#2', title:'Largest Computer Hardware Exports Growth Market (est.)', value:5000, suffix:'$ Million/yr', cat:'CompMfg'},
+  {rank:'#1', title:'Largest IT Hardware PLI Scheme Investment (est.)', value:17000, suffix:'$ Million committed', cat:'CompMfg'},
+  {rank:'#1', title:'Largest Display Panel Assembly Investment Under Development (est.)', value:10000, suffix:'$ Million committed', cat:'CompMfg'},
+  {rank:'#1', title:'Largest Computer Manufacturing SEZ Network (est.)', value:15, suffix:'special economic zones', cat:'CompMfg'},
+  {rank:'#1', title:'Largest Number of Savings Bank Accounts (est.)', value:2000000000, suffix:'accounts', cat:'Banking'},
+  {rank:'#3', title:'Largest Number of Current (Business) Bank Accounts (est.)', value:150000000, suffix:'accounts', cat:'Banking'},
+  {rank:'#2', title:'Largest Commodity Derivatives Trading Volume (est.)', value:700000000, suffix:'contracts/yr', cat:'Capital'},
+  {rank:'#2', title:'Largest Currency Futures Trading Market (est.)', value:400000000, suffix:'contracts/yr', cat:'Capital'},
+  {rank:'#4', title:'Largest Corporate Bond Issuance Market (est.)', value:130000, suffix:'$ Million/yr', cat:'Capital'},
+  {rank:'#3', title:'Largest Green & Sustainable Bond Market in Asia (est.)', value:8000, suffix:'$ Million', cat:'Capital'},
+  {rank:'#1', title:'Largest Sovereign Gold Bond Program (est.)', value:150, suffix:'tonnes gold mobilized', cat:'Capital'},
+  {rank:'#2', title:'Largest Gold ETF Market in Asia (est.)', value:4500, suffix:'$ Million AUM', cat:'Capital'},
+  {rank:'#2', title:'Largest Passive/Index Fund AUM Growth Market (est.)', value:90000, suffix:'$ Million AUM', cat:'Capital'},
+  {rank:'#1', title:'Largest SME Stock Exchange Platform (est.)', value:700, suffix:'SMEs listed', cat:'Capital'},
+  {rank:'#2', title:'Largest QIP (Qualified Institutional Placement) Market (est.)', value:15000, suffix:'$ Million/yr', cat:'Capital'},
+  {rank:'#2', title:'Largest Block & Bulk Deal Trading Volume (est.)', value:60000, suffix:'$ Million/yr', cat:'Capital'},
+  {rank:'#3', title:'Largest Foreign Portfolio Investor Equity Holdings (est.)', value:750000, suffix:'$ Million', cat:'Capital'},
+  {rank:'#2', title:'Largest Algorithmic Trading Share of Market Volume (est.)', value:50, suffix:'% of trades', cat:'Capital'},
+  {rank:'#2', title:'Largest Corporate Buyback Activity Market (est.)', value:8000, suffix:'$ Million/yr', cat:'Capital'},
+  {rank:'#1', title:'Largest InvIT Market in Asia (est.)', value:15000, suffix:'$ Million AUM', cat:'Capital'},
+  {rank:'#2', title:'Largest ESG Fund AUM Growth Market (est.)', value:10000, suffix:'$ Million', cat:'Capital'},
+  {rank:'#4', title:'Largest Market Cap to GDP Ratio Among Major Economies (est.)', value:130, suffix:'% ratio', cat:'Capital'},
+  {rank:'#1', title:'Largest Number of Mutual Fund Schemes (est.)', value:2800, suffix:'schemes', cat:'Capital'},
+  {rank:'#1', title:'Largest National Pension System Equity AUM (est.)', value:20000, suffix:'$ Million', cat:'Capital'},
+  {rank:'#2', title:'Largest Clearing Corporation Daily Settlement Volume (est.)', value:25000, suffix:'$ Million/day', cat:'Capital'},
+  {rank:'#3', title:'Largest Rights Issue Market (est.)', value:5000, suffix:'$ Million/yr', cat:'Capital'},
+  {rank:'#1', title:'Largest Producer of Spinach (est.)', value:2600000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Capsicum/Bell Pepper (est.)', value:1400000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Cucumber (est.)', value:2100000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Sweet Potato (est.)', value:1200000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Colocasia (Taro Root, est.)', value:1300000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Drumstick (Moringa, est.)', value:3600000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Beetroot (est.)', value:400000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of French Beans (est.)', value:2100000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Cluster Beans (Guar Phali, est.)', value:1600000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Snake Gourd (est.)', value:900000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Ivy Gourd (Tindora, est.)', value:700000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Producer of Turnip (est.)', value:500000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#1', title:'Largest Producer of Fenugreek Leaves (Methi Saag, est.)', value:600000, suffix:'tonnes/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Vegetable Export Market (est.)', value:2000, suffix:'$ Million/yr', cat:'Veg'},
+  {rank:'#2', title:'Largest Protected Cultivation (Greenhouse) Vegetable Area (est.)', value:50000, suffix:'hectares', cat:'Veg'},
+  {rank:'#1', title:'Largest Pearl Millet (Bajra) Producer Specifically (est.)', value:10500000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#2', title:'Largest Rice Milling Industry Capacity (est.)', value:160000000, suffix:'tonnes/yr capacity', cat:'Cereal'},
+  {rank:'#2', title:'Largest Wheat Flour Milling Industry (est.)', value:100000000, suffix:'tonnes/yr capacity', cat:'Cereal'},
+  {rank:'#1', title:'Largest Fortified Rice Distribution Program (est.)', value:800000000, suffix:'beneficiaries', cat:'Cereal'},
+  {rank:'#1', title:'Largest Basmati Rice Cultivation Area (est.)', value:2000000, suffix:'hectares', cat:'Cereal'},
+  {rank:'#2', title:'Largest Non-Basmati Rice Production (est.)', value:140000000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#1', title:'Largest Foodgrain Storage Silo Capacity (est.)', value:20000000, suffix:'tonnes', cat:'Cereal'},
+  {rank:'#1', title:'Largest Millet Export Promotion Program (est.)', value:1000, suffix:'$ Million/yr target', cat:'Cereal'},
+  {rank:'#1', title:'Largest MSP-Based Grain Procurement Program (est.)', value:80000000, suffix:'tonnes/yr procured', cat:'Cereal'},
+  {rank:'#2', title:'Largest Double-Cropped Cereal Area (est.)', value:30000000, suffix:'hectares', cat:'Cereal'},
+  {rank:'#1', title:'Largest High-Yield Wheat Variety Adoption Program (est.)', value:90, suffix:'% adoption', cat:'Cereal'},
+  {rank:'#1', title:'Largest Cereal Crop Research Institute Network (est.)', value:25, suffix:'institutes', cat:'Cereal'},
+  {rank:'#2', title:'Largest Grain-Based Ethanol Production Program (est.)', value:5000000000, suffix:'litres/yr', cat:'Cereal'},
+  {rank:'#1', title:'Largest Cereal Crop Insurance Coverage (est.)', value:40000000, suffix:'farmers covered', cat:'Cereal'},
+  {rank:'#2', title:'Largest Rabi Season Foodgrain Output (est.)', value:160000000, suffix:'tonnes/yr', cat:'Cereal'},
+  {rank:'#4', title:'Largest Producer of Star Anise (est.)', value:3000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#6', title:'Largest Producer of Cinnamon (est.)', value:2000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#7', title:'Largest Producer of Clove (est.)', value:1500, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Spice-Grade Mustard Seed (est.)', value:500000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Ajwain (Carom Seeds, est.)', value:30000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Producer of Poppy Seed (est.)', value:5000, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#5', title:'Largest Producer of Vanilla (est.)', value:20, suffix:'tonnes/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Spice Board Certified Export Market (est.)', value:4500, suffix:'$ Million/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Spice Park Infrastructure Network (est.)', value:11, suffix:'spice parks', cat:'Spice'},
+  {rank:'#1', title:'Largest Organic Spice Cultivation Area (est.)', value:200000, suffix:'hectares', cat:'Spice'},
+  {rank:'#1', title:'Largest Spice Processing & Grinding Industry (est.)', value:3000, suffix:'$ Million/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Spice Oleoresin Extraction Industry (est.)', value:700, suffix:'$ Million/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Spice Blend (Masala) Manufacturing Market (est.)', value:2500, suffix:'$ Million/yr', cat:'Spice'},
+  {rank:'#1', title:'Largest Number of GI-Tagged Spices (est.)', value:15, suffix:'GI tags', cat:'Spice'},
+  {rank:'#1', title:'Largest Total Spice Cultivation Area (est.)', value:4500000, suffix:'hectares', cat:'Spice'}
+];
+
+const categories = [
+  {id:'Auto', name:'Automobile & Vehicle Manufacturing'},
+  {id:'AgriTrade', name:'Agricultural Exports'},
+  {id:'AgriInfra', name:'Agri Infrastructure & Water'},
+  {id:'Aviation', name:'Aviation & Logistics'},
+  {id:'Banking', name:'Banking & Financial Inclusion'},
+  {id:'Capital', name:'Capital Markets'},
+  {id:'CashCrop', name:'Cash Crops & Fibres'},
+  {id:'Cereal', name:'Cereals & Grains'},
+  {id:'Chem', name:'Chemicals & Industrial Output'},
+  {id:'Consumer', name:'Consumer & Hardware Manufacturing'},
+  {id:'Dairy', name:'Dairy & Animal Products'},
+  {id:'Education', name:'Education'},
+  {id:'Fish', name:'Fisheries & Aquaculture'},
+  {id:'Fruit', name:'Fruits'},
+  {id:'Gems', name:'Gems, Jewellery & Handicrafts'},
+  {id:'GovDefence', name:'Governance & Defence'},
+  {id:'Healthcare', name:'Healthcare & Medicine'},
+  {id:'Heritage', name:'Heritage & Language'},
+  {id:'IndTrade', name:'Industrial & Consumer Exports'},
+  {id:'Internet', name:'Internet & Digital Payments'},
+  {id:'Lifestyle', name:'Lifestyle & Traditions'},
+  {id:'Metal', name:'Metals, Cement & Mining'},
+  {id:'Plantation', name:'Plantation & Nut Crops'},
+  {id:'PopDemo', name:'Population & Democracy'},
+  {id:'PubFin', name:'Public Finance & Reserves'},
+  {id:'Power', name:'Energy & Power'},
+  {id:'Pulse', name:'Pulses & Oilseeds'},
+  {id:'Records', name:'World Records & Achievements'},
+  {id:'Science', name:'Science, Research & Space'},
+  {id:'Seri', name:'Sericulture & Silk'},
+  {id:'Spice', name:'Spices & Condiments'},
+  {id:'Startup', name:'Startups & Gig Economy'},
+  {id:'Telecom', name:'Telecom Infrastructure'},
+  {id:'Textile', name:'Textiles & Apparel Manufacturing'},
+  {id:'Transport', name:'Transport Networks'},
+  {id:'Veg', name:'Vegetables'},
+  {id:'Wildlife', name:'Wildlife & Livestock'},
+  {id:'MedPro', name:'Medical Professions'},
+  {id:'Legal', name:'Legal & Judiciary'},
+  {id:'Cricket', name:'Cricket'},
+  {id:'Football', name:'Football'},
+  {id:'OtherSports', name:'Olympic & Global Sports Achievements'},
+  {id:'MindSports', name:'Chess & Mind Sports'},
+  {id:'TradGames', name:'Traditional & Indigenous Games'},
+  {id:'Music', name:'Music Industry'},
+  {id:'FilmEnt', name:'Film & Entertainment Industry'},
+  {id:'Publishing', name:'Publishing & Print Media'},
+  {id:'DigitalContent', name:'Digital Content & Creators'},
+  {id:'AdMarketing', name:'Advertising & Marketing'},
+  {id:'Fashion', name:'Fashion & Apparel Retail'},
+  {id:'Ecommerce', name:'E-commerce & Online Retail'},
+  {id:'RealEstate', name:'Real Estate & Housing'},
+  {id:'Insurance', name:'Insurance Sector'},
+  {id:'Tourism', name:'Tourism & Hospitality'},
+  {id:'Hotels', name:'Hotel Industry'},
+  {id:'AdventureTourism', name:'Adventure & Wildlife Tourism'},
+  {id:'Culinary', name:'Culinary Arts & Street Food'},
+  {id:'Beverages', name:'Beverages (Tea, Coffee & Soft Drinks)'},
+  {id:'Confectionery', name:'Confectionery & Bakery'},
+  {id:'RetailMalls', name:'Retail Chains & Malls'},
+  {id:'Biotech', name:'Biotechnology'},
+  {id:'Nanotech', name:'Nanotechnology'},
+  {id:'Robotics', name:'Robotics & Automation'},
+  {id:'AeroDefence', name:'Aerospace & Defence Manufacturing'},
+  {id:'Shipbuilding', name:'Shipbuilding & Ports'},
+  {id:'WaterSanitation', name:'Water Resources & Sanitation'},
+  {id:'UrbanDev', name:'Urban Development & Smart Cities'},
+  {id:'RuralDev', name:'Rural Development'},
+  {id:'WomenChild', name:'Women & Child Welfare'},
+  {id:'ElderlyCare', name:'Elderly Care & Social Security'},
+  {id:'Disability', name:'Disability Services & Inclusion'},
+  {id:'MediaJournalism', name:'Media & Journalism'},
+  {id:'Podcasting', name:'Podcasting & Streaming Content'},
+  {id:'GamingInd', name:'Gaming Industry'},
+  {id:'AnimationVFX', name:'Animation & VFX'},
+  {id:'ArchDesign', name:'Architecture & Design'},
+  {id:'HandicraftRetail', name:'Handicraft Retail & Crafts Markets'},
+  {id:'EVEcosystem', name:'Renewable Vehicles & EV Ecosystem'},
+  {id:'SpaceExplore', name:'Space Exploration'},
+  {id:'NuclearRes', name:'Nuclear Energy & Research'},
+  {id:'WaterSports', name:'Water & Adventure Sports'},
+  {id:'TradMedicine', name:'Traditional Medicine & Wellness'},
+  {id:'VetAnimal', name:'Veterinary Services & Animal Husbandry'},
+  {id:'Cybersecurity', name:'Cybersecurity & IT Services'},
+  {id:'Photography', name:'Photography & Visual Arts'},
+  {id:'Literature', name:'Literature & Publishing Awards'},
+  {id:'Handloom', name:'Handloom & Weaving Communities'},
+  {id:'CompMfg', name:'Computer Manufacturing'}
+];
+categories.sort((a, b) => a.name.localeCompare(b.name));
+
+const grid = document.getElementById('rankGrid');
+let cardIdx = 0;
+const flatOrder = [];
+const sectionMeta = [];
+categories.forEach(cat => {
+  const items = rankings.filter(r => r.cat === cat.id);
+  if (!items.length) return;
+  const section = document.createElement('details');
+  section.className = 'category';
+  section.innerHTML =
+    '<summary>' + cat.name + ' <span class="count">(' + items.length + ')</span>' +
+    '<span class="chevron">&#9656;</span></summary><div class="grid"></div>';
+  const catGrid = section.querySelector('.grid');
+  const cardEls = [];
+  items.forEach(item => {
+    const idx = cardIdx++;
+    flatOrder.push(item);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<span class="rank">' + item.rank + ' Globally</span>' +
+      '<span class="title">' + item.title + '</span>' +
+      '<span class="value" data-target="' + item.value + '" id="val' + idx + '">0</span>' +
+      '<span class="unit">' + item.suffix + '</span>';
+    catGrid.appendChild(card);
+    cardEls.push({el: card, title: item.title.toLowerCase()});
+  });
+  grid.appendChild(section);
+  sectionMeta.push({el: section, name: cat.name.toLowerCase(), cards: cardEls, wasOpen: false});
+});
+
+const toggleAllBtn = document.getElementById('toggleAllBtn');
+let allExpanded = false;
+toggleAllBtn.addEventListener('click', () => {
+  allExpanded = !allExpanded;
+  document.querySelectorAll('.category').forEach(d => { d.open = allExpanded; });
+  toggleAllBtn.textContent = allExpanded ? 'Collapse All' : 'Expand All';
+});
+
+const groupSearch = document.getElementById('groupSearch');
+const noResults = document.getElementById('noResults');
+let searchActive = false;
+groupSearch.addEventListener('input', () => {
+  const q = groupSearch.value.trim().toLowerCase();
+  if (q && !searchActive) {
+    sectionMeta.forEach(meta => { meta.wasOpen = meta.el.open; });
+    searchActive = true;
+  }
+  if (!q) searchActive = false;
+  let visibleCount = 0;
+  sectionMeta.forEach(meta => {
+    if (!q) {
+      meta.el.style.display = '';
+      meta.el.open = meta.wasOpen;
+      meta.cards.forEach(c => { c.el.style.display = ''; });
+      return;
+    }
+    const groupMatches = meta.name.includes(q);
+    let cardMatchCount = 0;
+    meta.cards.forEach(c => {
+      const show = groupMatches || c.title.includes(q);
+      c.el.style.display = show ? '' : 'none';
+      if (show) cardMatchCount++;
+    });
+    if (cardMatchCount > 0) {
+      meta.el.style.display = '';
+      meta.el.open = true;
+      visibleCount++;
+    } else {
+      meta.el.style.display = 'none';
+    }
+  });
+  noResults.style.display = (q && visibleCount === 0) ? 'block' : 'none';
+});
+
+
+
+function countUp(el, target, duration){
+  const start = performance.now();
+  function step(now){
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(target * eased);
+    el.textContent = current.toLocaleString('en-IN') + (target >= 1000 ? '' : '');
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = target.toLocaleString('en-IN');
+  }
+  requestAnimationFrame(step);
+}
+flatOrder.forEach((item, idx) => {
+  const el = document.getElementById('val' + idx);
+  countUp(el, item.value, 1200 + idx * 12);
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
